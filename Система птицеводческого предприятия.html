@@ -1,0 +1,2150 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ситуационный центр — птицеводческое предприятие</title>
+<style>
+/* тёмная графитовая тема, статусные цвета: зелёный/жёлтый/красный/серый */
+:root {
+  --bg: #16181b; --panel: #1f2226; --panel2: #262a2f; --line: #33383e; --text: #e6e8eb; --muted: #8b939c;
+  --ok: #3fb67a; --warn: #e5a93d; --bad: #e5534b; --info: #4c9aff; --accent: #8fa3b8; --stale: #7a828b;
+  --radius: 10px; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font-size: 14px; }
+h2 { margin: 0; font-size: 16px; } h3 { margin: 0 0 8px; }
+.muted { color: var(--muted); } .small { font-size: 12px; } .nowrap { white-space: nowrap; }
+.bad-t { color: var(--bad); font-weight: 600; }
+
+.app-header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; padding: 10px 20px; background: #101215; border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 10px; } .brand small { display: block; color: var(--muted); font-size: 11px; } .logo { font-size: 26px; }
+.roles { display: flex; gap: 4px; background: var(--panel); padding: 4px; border-radius: 999px; margin: 0 auto; }
+.role-btn { border: 0; background: transparent; color: var(--muted); padding: 7px 16px; border-radius: 999px; cursor: pointer; font-size: 14px; }
+.role-btn:hover { color: var(--text); } .role-btn.on { background: var(--accent); color: #11161b; font-weight: 600; }
+.hdr-right { display: flex; align-items: center; gap: 12px; } .who { color: var(--muted); font-size: 12px; } .clock { font-variant-numeric: tabular-nums; color: var(--muted); }
+.app-main { padding: 18px 20px 40px; max-width: 1500px; margin: 0 auto; }
+.view > * + * { margin-top: 16px; }
+
+select, input, textarea { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 7px; padding: 6px 8px; font: inherit; max-width: 100%; }
+textarea { width: 100%; resize: vertical; } input.num { width: 90px; }
+select:disabled, input:disabled { opacity: .55; } option:disabled { color: #666; }
+.btn { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 7px; padding: 7px 12px; cursor: pointer; font: inherit; display: inline-block; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: #11161b; border-color: var(--accent); font-weight: 600; }
+.btn.success { background: var(--ok); color: #08140e; border-color: var(--ok); font-weight: 600; }
+.btn.danger { color: var(--bad); border-color: #5b2b28; } .btn.ghost { background: transparent; } .btn.sm { padding: 4px 9px; font-size: 12px; }
+.btns { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+.panel-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.filters, .inline-form { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; } .inline-form { margin-top: 12px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1.3fr; gap: 24px; } @media (max-width: 1000px) { .grid2 { grid-template-columns: 1fr; } }
+
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: var(--radius); padding: 12px 14px; }
+.kpi b { font-size: 28px; display: block; } .kpi span { color: var(--muted); font-size: 12px; }
+.kpi.bad { border-left-color: var(--bad); } .kpi.warn { border-left-color: var(--warn); } .kpi.ok { border-left-color: var(--ok); } .kpi.stale { border-left-color: var(--stale); }
+.alert-banner { background: #2a1819; border: 1px solid var(--bad); border-radius: var(--radius); padding: 12px 16px; animation: glow 2s infinite; }
+.alert-title { font-weight: 700; color: #ff8a83; display: flex; align-items: center; gap: 8px; } .alert-banner ul { margin: 8px 0 0; padding-left: 22px; } .alert-banner li { margin: 3px 0; }
+.alert-warn { background: #2a2314; border: 1px solid #6b5420; color: #f0c76a; border-radius: var(--radius); padding: 10px 16px; }
+.alert-warn ul { margin: 6px 0 0; padding-left: 22px; color: var(--text); }
+.alert-ok { background: #162219; border: 1px solid #25533b; color: #7fd6a8; border-radius: var(--radius); padding: 10px 16px; }
+.pulse { width: 10px; height: 10px; border-radius: 50%; background: var(--bad); animation: pulse 1.2s infinite; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(229,83,75,.7); } 100% { box-shadow: 0 0 0 10px rgba(229,83,75,0); } }
+@keyframes glow { 50% { box-shadow: 0 0 14px rgba(229,83,75,.35); } }
+
+.sites { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 14px; }
+.site { background: var(--panel2); border: 1px solid var(--line); border-top: 3px solid var(--ok); border-radius: var(--radius); padding: 10px 12px; }
+.site.warning { border-top-color: var(--warn); } .site.critical { border-top-color: var(--bad); } .site.stale { border-top-color: var(--stale); }
+.site header { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; } .site header .badge { margin-left: auto; }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tile { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.tile.warning { border-color: var(--warn); } .tile.critical { border-color: var(--bad); background: #261819; } .tile.stale { border-style: dashed; border-color: var(--stale); }
+.tile-l { color: var(--muted); font-size: 12px; } .tile-v { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; } .tile-v small { font-size: 12px; color: var(--muted); font-weight: 400; }
+.tile.critical .tile-v { color: #ff8a83; } .tile.warning .tile-v { color: var(--warn); } .tile.stale .tile-v { color: var(--stale); } .tile-n { font-size: 11px; color: var(--muted); }
+.spark { width: 100%; height: 34px; display: block; } .spark .band { fill: rgba(63,182,122,.12); } .spark .line { fill: none; stroke: var(--accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.tile.critical .spark .line { stroke: var(--bad); } .tile.warning .spark .line { stroke: var(--warn); }
+
+.table-wrap { overflow: auto; } .table-wrap.tall { max-height: 480px; }
+.tbl { width: 100%; border-collapse: collapse; } .tbl th { text-align: left; color: var(--muted); font-weight: 500; font-size: 12px; padding: 6px 8px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--panel); }
+.tbl td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; } .tbl tbody tr:hover { background: rgba(255,255,255,.025); }
+.row-overdue { background: rgba(229,83,75,.08); box-shadow: inset 3px 0 0 var(--bad); } .row-closed { opacity: .6; } .row-warn { background: rgba(229,169,61,.08); }
+.empty { text-align: center; color: var(--muted); padding: 26px; } .empty.big { font-size: 18px; padding: 50px; }
+.chip { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; background: var(--panel2); border: 1px solid var(--line); }
+.chip.warn { color: var(--warn); border-color: #5c4a1f; }
+.chip.t-ventilation { color: #7cc4ff; } .chip.t-humidity { color: #6fd6d0; } .chip.t-equipment { color: #c9a0ff; } .chip.t-temperature { color: #ff9f7a; } .chip.t-other { color: var(--muted); }
+.chip.role-admin { color: #ff9f7a; } .chip.role-dispatcher { color: #7cc4ff; } .chip.role-worker { color: #7fd6a8; }
+.badge { padding: 2px 9px; border-radius: 6px; font-size: 11px; font-weight: 700; letter-spacing: .3px; }
+.st-normal, .st-closed { background: #173325; color: #7fd6a8; } .st-warning, .st-assigned { background: #3a2f14; color: var(--warn); }
+.st-critical, .st-new { background: #3a1a18; color: #ff8a83; } .st-in_progress { background: #17304a; color: #7cc4ff; }
+.st-stale { background: #2a2e33; color: #aab2bb; }
+.st-duplicate { background: #2a2e33; color: #aab2bb; text-decoration: line-through; }
+.chip.role-manager { color: #e8c76a; } .chip.zone { color: var(--accent); }
+select.st { font-weight: 600; }
+
+.hello { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; } .hello .tabs { margin: 0; } .tabs.big { margin-bottom: 0; }
+.tab { background: var(--panel); color: var(--muted); border: 1px solid var(--line); border-radius: 8px; padding: 7px 14px; cursor: pointer; font: inherit; } .tab.on { background: var(--accent); color: #11161b; font-weight: 600; border-color: var(--accent); }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
+.card.overdue { border-color: var(--bad); box-shadow: 0 0 0 1px rgba(229,83,75,.3); }
+.card header { display: flex; gap: 8px; align-items: center; } .card header .badge { margin-left: auto; }
+.card-loc { font-size: 16px; font-weight: 600; } .card p { margin: 4px 0; font-size: 15px; }
+.card-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; } .card-actions .btn { padding: 10px 14px; font-size: 15px; }
+.comments { display: flex; flex-direction: column; gap: 6px; margin: 6px 0; } .cmt { background: var(--panel2); border-radius: 8px; padding: 6px 10px; }
+
+dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 12px; padding: 0; width: min(520px, 92vw); } dialog::backdrop { background: rgba(0,0,0,.6); }
+.dlg-body { padding: 18px; display: flex; flex-direction: column; gap: 10px; } .dlg-body label { display: flex; flex-direction: column; gap: 4px; color: var(--muted); font-size: 12px; } .dlg-body label.check { flex-direction: row; align-items: center; gap: 8px; color: var(--text); }
+.dlg-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.simbar { flex-basis: 100%; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 8px; font-size: 12px; color: var(--muted); }
+.simbar input[type=range] { flex: 1 1 260px; min-width: 160px; accent-color: var(--accent); } .simbar select { padding: 4px 6px; }
+.simbar .sim-t { font-variant-numeric: tabular-nums; color: var(--text); min-width: 11.5em; } .simbar .sim-r { font-variant-numeric: tabular-nums; }
+.toasts { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 50; }
+.toast { background: #2b3036; border: 1px solid var(--line); border-left: 4px solid var(--info); padding: 10px 14px; border-radius: 8px; max-width: 420px; transition: opacity .4s; box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+.toast.ok { border-left-color: var(--ok); } .toast.error { border-left-color: var(--bad); } .toast.out { opacity: 0; }
+</style>
+</head>
+<body>
+<header id="app-header" class="app-header"></header>
+<main id="app-main" class="app-main"></main>
+<div id="toasts" class="toasts"></div>
+<dialog id="stand"></dialog>
+
+<!-- Исходные данные пользователя встроены без изменений (содержимое файлов как есть) -->
+<script type="text/plain" id="csv-sites">site_id,name,zone
+site_01,Птичник №1,zone_A
+site_02,Птичник №2,zone_A
+site_03,Птичник №3,zone_B
+site_04,Инкубатор,zone_B
+site_05,Кормоцех,zone_C
+</script>
+<script type="text/plain" id="csv-incidents">incident_id,type,location,time,responsible,status,deadline
+inc_001,ventilation,site_01,2025-11-01T08:00:00Z,e_102,NEW,2025-11-01T12:00:00Z
+inc_002,humidity,site_02,2025-11-01T09:07:00Z,e_103,ASSIGNED,2025-11-01T13:07:00Z
+inc_003,equipment,site_03,2025-11-01T10:14:00Z,e_104,IN_PROGRESS,2025-11-01T14:14:00Z
+inc_004,other,site_04,2025-11-01T11:21:00Z,e_105,CLOSED,2025-11-01T15:21:00Z
+inc_005,temperature,site_05,2025-11-01T12:28:00Z,e_101,ASSIGNED,2025-11-01T16:28:00Z
+inc_006,ventilation,site_01,2025-11-01T13:35:00Z,e_102,IN_PROGRESS,2025-11-01T17:35:00Z
+inc_007,humidity,site_02,2025-11-01T14:42:00Z,e_103,CLOSED,2025-11-01T18:42:00Z
+inc_008,equipment,site_03,2025-11-01T15:49:00Z,e_104,NEW,2025-11-01T19:49:00Z
+inc_009,other,site_04,2025-11-01T16:56:00Z,e_105,ASSIGNED,2025-11-01T20:56:00Z
+inc_010,temperature,site_05,2025-11-01T17:03:00Z,e_101,IN_PROGRESS,2025-11-01T21:03:00Z
+inc_011,ventilation,site_01,2025-11-01T08:10:00Z,e_102,CLOSED,2025-11-01T12:10:00Z
+inc_012,humidity,site_02,2025-11-01T09:17:00Z,e_103,NEW,2025-11-01T13:17:00Z
+inc_013,equipment,site_03,2025-11-01T10:24:00Z,e_104,ASSIGNED,2025-11-01T14:24:00Z
+inc_014,other,site_04,2025-11-01T11:31:00Z,e_105,IN_PROGRESS,2025-11-01T15:31:00Z
+inc_015,temperature,site_05,2025-11-01T12:38:00Z,e_101,CLOSED,2025-11-01T16:38:00Z
+inc_016,ventilation,site_01,2025-11-01T13:45:00Z,e_102,NEW,2025-11-01T17:45:00Z
+inc_017,humidity,site_02,2025-11-01T14:52:00Z,e_103,ASSIGNED,2025-11-01T18:52:00Z
+inc_018,equipment,site_03,2025-11-01T15:59:00Z,e_104,IN_PROGRESS,2025-11-01T19:59:00Z
+inc_019,other,site_04,2025-11-01T16:06:00Z,e_105,CLOSED,2025-11-01T20:06:00Z
+inc_020,temperature,site_05,2025-11-01T17:13:00Z,e_101,NEW,2025-11-01T21:13:00Z
+inc_021,ventilation,site_01,2025-11-01T08:20:00Z,e_102,ASSIGNED,2025-11-01T12:20:00Z
+inc_022,humidity,site_02,2025-11-01T09:27:00Z,e_103,IN_PROGRESS,2025-11-01T13:27:00Z
+inc_023,equipment,site_03,2025-11-01T10:34:00Z,e_104,CLOSED,2025-11-01T14:34:00Z
+inc_024,other,site_04,2025-11-01T11:41:00Z,e_105,NEW,2025-11-01T15:41:00Z
+inc_025,temperature,site_05,2025-11-01T12:48:00Z,e_101,ASSIGNED,2025-11-01T16:48:00Z
+inc_026,ventilation,site_01,2025-11-02T13:55:00Z,e_102,IN_PROGRESS,2025-11-02T17:55:00Z
+inc_027,humidity,site_02,2025-11-02T14:02:00Z,e_103,CLOSED,2025-11-02T18:02:00Z
+inc_028,equipment,site_03,2025-11-02T15:09:00Z,e_104,NEW,2025-11-02T19:09:00Z
+inc_029,other,site_04,2025-11-02T16:16:00Z,e_105,ASSIGNED,2025-11-02T20:16:00Z
+inc_030,temperature,site_05,2025-11-02T17:23:00Z,e_101,IN_PROGRESS,2025-11-02T21:23:00Z
+inc_031,ventilation,site_01,2025-11-02T08:30:00Z,e_102,CLOSED,2025-11-02T12:30:00Z
+inc_032,humidity,site_02,2025-11-02T09:37:00Z,e_103,NEW,2025-11-02T13:37:00Z
+inc_033,equipment,site_03,2025-11-02T10:44:00Z,e_104,ASSIGNED,2025-11-02T14:44:00Z
+inc_034,other,site_04,2025-11-02T11:51:00Z,e_105,IN_PROGRESS,2025-11-02T15:51:00Z
+inc_035,temperature,site_05,2025-11-02T12:58:00Z,e_101,CLOSED,2025-11-02T16:58:00Z
+inc_036,ventilation,site_01,2025-11-02T13:05:00Z,e_102,NEW,2025-11-02T17:05:00Z
+inc_037,humidity,site_02,2025-11-02T14:12:00Z,e_103,ASSIGNED,2025-11-02T18:12:00Z
+inc_038,equipment,site_03,2025-11-02T15:19:00Z,e_104,IN_PROGRESS,2025-11-02T19:19:00Z
+inc_039,other,site_04,2025-11-02T16:26:00Z,e_105,CLOSED,2025-11-02T20:26:00Z
+inc_040,temperature,site_05,2025-11-02T17:33:00Z,e_101,NEW,2025-11-02T21:33:00Z
+inc_041,ventilation,site_01,2025-11-02T08:40:00Z,e_102,ASSIGNED,2025-11-02T12:40:00Z
+inc_042,humidity,site_02,2025-11-02T09:47:00Z,e_103,IN_PROGRESS,2025-11-02T13:47:00Z
+inc_043,equipment,site_03,2025-11-02T10:54:00Z,e_104,CLOSED,2025-11-02T14:54:00Z
+inc_044,other,site_04,2025-11-02T11:01:00Z,e_105,NEW,2025-11-02T15:01:00Z
+inc_045,temperature,site_05,2025-11-02T12:08:00Z,e_101,ASSIGNED,2025-11-02T16:08:00Z
+inc_046,ventilation,site_01,2025-11-02T13:15:00Z,e_102,IN_PROGRESS,2025-11-02T17:15:00Z
+inc_047,humidity,site_02,2025-11-02T14:22:00Z,e_103,CLOSED,2025-11-02T18:22:00Z
+inc_048,equipment,site_03,2025-11-02T15:29:00Z,e_104,NEW,2025-11-02T19:29:00Z
+inc_049,other,site_04,2025-11-02T16:36:00Z,e_105,ASSIGNED,2025-11-02T20:36:00Z
+inc_050,temperature,site_05,2025-11-02T17:43:00Z,e_101,IN_PROGRESS,2025-11-02T21:43:00Z
+inc_051,ventilation,site_01,2025-11-03T08:50:00Z,e_102,CLOSED,2025-11-03T12:50:00Z
+inc_052,humidity,site_02,2025-11-03T09:57:00Z,e_103,NEW,2025-11-03T13:57:00Z
+inc_053,equipment,site_03,2025-11-03T10:04:00Z,e_104,ASSIGNED,2025-11-03T14:04:00Z
+inc_054,other,site_04,2025-11-03T11:11:00Z,e_105,IN_PROGRESS,2025-11-03T15:11:00Z
+inc_055,temperature,site_05,2025-11-03T12:18:00Z,e_101,CLOSED,2025-11-03T16:18:00Z
+inc_056,ventilation,site_01,2025-11-03T13:25:00Z,e_102,NEW,2025-11-03T17:25:00Z
+inc_057,humidity,site_02,2025-11-03T14:32:00Z,e_103,ASSIGNED,2025-11-03T18:32:00Z
+inc_058,equipment,site_03,2025-11-03T15:39:00Z,e_104,IN_PROGRESS,2025-11-03T19:39:00Z
+inc_059,other,site_04,2025-11-03T16:46:00Z,e_105,CLOSED,2025-11-03T20:46:00Z
+inc_060,temperature,site_05,2025-11-03T17:53:00Z,e_101,NEW,2025-11-03T21:53:00Z
+inc_061,ventilation,site_01,2025-11-03T08:00:00Z,e_102,ASSIGNED,2025-11-03T12:00:00Z
+inc_062,humidity,site_02,2025-11-03T09:07:00Z,e_103,IN_PROGRESS,2025-11-03T13:07:00Z
+inc_063,equipment,site_03,2025-11-03T10:14:00Z,e_104,CLOSED,2025-11-03T14:14:00Z
+inc_064,other,site_04,2025-11-03T11:21:00Z,e_105,NEW,2025-11-03T15:21:00Z
+inc_065,temperature,site_05,2025-11-03T12:28:00Z,e_101,ASSIGNED,2025-11-03T16:28:00Z
+inc_066,ventilation,site_01,2025-11-03T13:35:00Z,e_102,IN_PROGRESS,2025-11-03T17:35:00Z
+inc_067,humidity,site_02,2025-11-03T14:42:00Z,e_103,CLOSED,2025-11-03T18:42:00Z
+inc_068,equipment,site_03,2025-11-03T15:49:00Z,e_104,NEW,2025-11-03T19:49:00Z
+inc_069,other,site_04,2025-11-03T16:56:00Z,e_105,ASSIGNED,2025-11-03T20:56:00Z
+inc_070,temperature,site_05,2025-11-03T17:03:00Z,e_101,IN_PROGRESS,2025-11-03T21:03:00Z
+inc_071,ventilation,site_01,2025-11-03T08:10:00Z,e_102,CLOSED,2025-11-03T12:10:00Z
+inc_072,humidity,site_02,2025-11-03T09:17:00Z,e_103,NEW,2025-11-03T13:17:00Z
+inc_073,equipment,site_03,2025-11-03T10:24:00Z,e_104,ASSIGNED,2025-11-03T14:24:00Z
+inc_074,other,site_04,2025-11-03T11:31:00Z,e_105,IN_PROGRESS,2025-11-03T15:31:00Z
+inc_075,temperature,site_05,2025-11-03T12:38:00Z,e_101,CLOSED,2025-11-03T16:38:00Z
+inc_076,ventilation,site_01,2025-11-04T13:45:00Z,e_102,NEW,2025-11-04T17:45:00Z
+inc_077,humidity,site_02,2025-11-04T14:52:00Z,e_103,ASSIGNED,2025-11-04T18:52:00Z
+inc_078,equipment,site_03,2025-11-04T15:59:00Z,e_104,IN_PROGRESS,2025-11-04T19:59:00Z
+inc_079,other,site_04,2025-11-04T16:06:00Z,e_105,CLOSED,2025-11-04T20:06:00Z
+inc_080,temperature,site_05,2025-11-04T17:13:00Z,e_101,NEW,2025-11-04T21:13:00Z
+inc_081,ventilation,site_01,2025-11-04T08:20:00Z,e_102,ASSIGNED,2025-11-04T12:20:00Z
+inc_082,humidity,site_02,2025-11-04T09:27:00Z,e_103,IN_PROGRESS,2025-11-04T13:27:00Z
+inc_083,equipment,site_03,2025-11-04T10:34:00Z,e_104,CLOSED,2025-11-04T14:34:00Z
+inc_084,other,site_04,2025-11-04T11:41:00Z,e_105,NEW,2025-11-04T15:41:00Z
+inc_085,temperature,site_05,2025-11-04T12:48:00Z,e_101,ASSIGNED,2025-11-04T16:48:00Z
+inc_086,ventilation,site_01,2025-11-04T13:55:00Z,e_102,IN_PROGRESS,2025-11-04T17:55:00Z
+inc_087,humidity,site_02,2025-11-04T14:02:00Z,e_103,CLOSED,2025-11-04T18:02:00Z
+inc_088,equipment,site_03,2025-11-04T15:09:00Z,e_104,NEW,2025-11-04T19:09:00Z
+inc_089,other,site_04,2025-11-04T16:16:00Z,e_105,ASSIGNED,2025-11-04T20:16:00Z
+inc_090,temperature,site_05,2025-11-04T17:23:00Z,e_101,IN_PROGRESS,2025-11-04T21:23:00Z
+inc_091,ventilation,site_01,2025-11-04T08:30:00Z,e_102,CLOSED,2025-11-04T12:30:00Z
+inc_092,humidity,site_02,2025-11-04T09:37:00Z,e_103,NEW,2025-11-04T13:37:00Z
+inc_093,equipment,site_03,2025-11-04T10:44:00Z,e_104,ASSIGNED,2025-11-04T14:44:00Z
+inc_094,other,site_04,2025-11-04T11:51:00Z,e_105,IN_PROGRESS,2025-11-04T15:51:00Z
+inc_095,temperature,site_05,2025-11-04T12:58:00Z,e_101,CLOSED,2025-11-04T16:58:00Z
+inc_096,ventilation,site_01,2025-11-04T13:05:00Z,e_102,NEW,2025-11-04T17:05:00Z
+inc_097,humidity,site_02,2025-11-04T14:12:00Z,e_103,ASSIGNED,2025-11-04T18:12:00Z
+inc_098,equipment,site_03,2025-11-04T15:19:00Z,e_104,IN_PROGRESS,2025-11-04T19:19:00Z
+inc_099,other,site_04,2025-11-04T16:26:00Z,e_105,CLOSED,2025-11-04T20:26:00Z
+inc_100,temperature,site_05,2025-11-04T17:33:00Z,e_101,NEW,2025-11-04T21:33:00Z
+</script>
+<script type="text/plain" id="csv-indicators">time,location,indicator,value,norm_min,norm_max,status
+2025-11-01T08:11:00Z,site_01,humidity,51.1,40.0,70.0,NORMAL
+2025-11-01T09:22:00Z,site_02,ventilation,1.69,0.8,2.0,NORMAL
+2025-11-01T10:33:00Z,site_03,temperature,20.66,20.0,26.0,NORMAL
+2025-11-01T11:44:00Z,site_04,humidity,54.4,40.0,70.0,NORMAL
+2025-11-01T12:55:00Z,site_05,ventilation,1.82,0.8,2.0,NORMAL
+2025-11-01T13:06:00Z,site_01,temperature,21.32,20.0,26.0,NORMAL
+2025-11-01T14:17:00Z,site_02,humidity,57.7,40.0,70.0,NORMAL
+2025-11-01T15:28:00Z,site_03,ventilation,1.95,0.8,2.0,NORMAL
+2025-11-01T16:39:00Z,site_04,temperature,21.98,20.0,26.0,NORMAL
+2025-11-01T17:50:00Z,site_05,humidity,61.0,40.0,70.0,NORMAL
+2025-11-01T08:01:00Z,site_01,ventilation,0.88,0.8,2.0,NORMAL
+2025-11-01T09:12:00Z,site_02,temperature,22.64,20.0,26.0,NORMAL
+2025-11-01T10:23:00Z,site_03,humidity,64.3,40.0,70.0,NORMAL
+2025-11-01T11:34:00Z,site_04,ventilation,1.02,0.8,2.0,NORMAL
+2025-11-01T12:45:00Z,site_05,temperature,23.3,20.0,26.0,NORMAL
+2025-11-01T13:56:00Z,site_01,humidity,67.6,40.0,70.0,NORMAL
+2025-11-01T14:07:00Z,site_02,ventilation,1.15,0.8,2.0,NORMAL
+2025-11-01T15:18:00Z,site_03,temperature,23.96,20.0,26.0,NORMAL
+2025-11-01T16:29:00Z,site_04,humidity,40.9,40.0,70.0,NORMAL
+2025-11-01T17:40:00Z,site_05,ventilation,1.28,0.8,2.0,NORMAL
+2025-11-01T08:51:00Z,site_01,temperature,24.62,20.0,26.0,NORMAL
+2025-11-01T09:02:00Z,site_02,humidity,44.2,40.0,70.0,NORMAL
+2025-11-01T10:13:00Z,site_03,ventilation,1.41,0.8,2.0,NORMAL
+2025-11-01T11:24:00Z,site_04,temperature,25.28,20.0,26.0,NORMAL
+2025-11-01T12:35:00Z,site_05,humidity,47.5,40.0,70.0,NORMAL
+2025-11-01T13:46:00Z,site_01,ventilation,1.54,0.8,2.0,NORMAL
+2025-11-01T14:57:00Z,site_02,temperature,25.94,20.0,26.0,NORMAL
+2025-11-01T15:08:00Z,site_03,humidity,50.8,40.0,70.0,NORMAL
+2025-11-01T16:19:00Z,site_04,ventilation,1.68,0.8,2.0,NORMAL
+2025-11-01T17:30:00Z,site_05,temperature,20.6,20.0,26.0,NORMAL
+2025-11-01T08:41:00Z,site_01,humidity,54.1,40.0,70.0,NORMAL
+2025-11-01T09:52:00Z,site_02,ventilation,1.81,0.8,2.0,NORMAL
+2025-11-01T10:03:00Z,site_03,temperature,21.26,20.0,26.0,NORMAL
+2025-11-01T11:14:00Z,site_04,humidity,57.4,40.0,70.0,NORMAL
+2025-11-01T12:25:00Z,site_05,ventilation,1.94,0.8,2.0,NORMAL
+2025-11-01T13:36:00Z,site_01,temperature,21.92,20.0,26.0,NORMAL
+2025-11-01T14:47:00Z,site_02,humidity,60.7,40.0,70.0,NORMAL
+2025-11-01T15:58:00Z,site_03,ventilation,0.87,0.8,2.0,NORMAL
+2025-11-01T16:09:00Z,site_04,temperature,22.58,20.0,26.0,NORMAL
+2025-11-01T17:20:00Z,site_05,humidity,64.0,40.0,70.0,NORMAL
+2025-11-01T08:31:00Z,site_01,ventilation,1.0,0.8,2.0,NORMAL
+2025-11-01T09:42:00Z,site_02,temperature,23.24,20.0,26.0,NORMAL
+2025-11-01T10:53:00Z,site_03,humidity,67.3,40.0,70.0,NORMAL
+2025-11-01T11:04:00Z,site_04,ventilation,1.14,0.8,2.0,NORMAL
+2025-11-01T12:15:00Z,site_05,temperature,23.9,20.0,26.0,NORMAL
+2025-11-01T13:26:00Z,site_01,humidity,40.6,40.0,70.0,NORMAL
+2025-11-01T14:37:00Z,site_02,ventilation,1.27,0.8,2.0,NORMAL
+2025-11-01T15:48:00Z,site_03,temperature,24.56,20.0,26.0,NORMAL
+2025-11-01T16:59:00Z,site_04,humidity,43.9,40.0,70.0,NORMAL
+2025-11-01T17:10:00Z,site_05,ventilation,1.4,0.8,2.0,NORMAL
+2025-11-02T08:21:00Z,site_01,temperature,25.22,20.0,26.0,NORMAL
+2025-11-02T09:32:00Z,site_02,humidity,47.2,40.0,70.0,NORMAL
+2025-11-02T10:43:00Z,site_03,ventilation,1.53,0.8,2.0,NORMAL
+2025-11-02T11:54:00Z,site_04,temperature,25.88,20.0,26.0,NORMAL
+2025-11-02T12:05:00Z,site_05,humidity,50.5,40.0,70.0,NORMAL
+2025-11-02T13:16:00Z,site_01,ventilation,1.66,0.8,2.0,NORMAL
+2025-11-02T14:27:00Z,site_02,temperature,20.54,20.0,26.0,NORMAL
+2025-11-02T15:38:00Z,site_03,humidity,53.8,40.0,70.0,NORMAL
+2025-11-02T16:49:00Z,site_04,ventilation,1.8,0.8,2.0,NORMAL
+2025-11-02T17:00:00Z,site_05,temperature,21.2,20.0,26.0,NORMAL
+2025-11-02T08:11:00Z,site_01,humidity,57.1,40.0,70.0,NORMAL
+2025-11-02T09:22:00Z,site_02,ventilation,1.93,0.8,2.0,NORMAL
+2025-11-02T10:33:00Z,site_03,temperature,21.86,20.0,26.0,NORMAL
+2025-11-02T11:44:00Z,site_04,humidity,60.4,40.0,70.0,NORMAL
+2025-11-02T12:55:00Z,site_05,ventilation,0.86,0.8,2.0,NORMAL
+2025-11-02T13:06:00Z,site_01,temperature,22.52,20.0,26.0,NORMAL
+2025-11-02T14:17:00Z,site_02,humidity,63.7,40.0,70.0,NORMAL
+2025-11-02T15:28:00Z,site_03,ventilation,0.99,0.8,2.0,NORMAL
+2025-11-02T16:39:00Z,site_04,temperature,23.18,20.0,26.0,NORMAL
+2025-11-02T17:50:00Z,site_05,humidity,71.5,40.0,70.0,WARNING
+2025-11-02T08:01:00Z,site_01,ventilation,2.12,0.8,2.0,WARNING
+2025-11-02T09:12:00Z,site_02,temperature,26.0,20.0,26.0,WARNING
+2025-11-02T10:23:00Z,site_03,humidity,71.5,40.0,70.0,WARNING
+2025-11-02T11:34:00Z,site_04,ventilation,2.12,0.8,2.0,WARNING
+2025-11-02T12:45:00Z,site_05,temperature,26.0,20.0,26.0,WARNING
+2025-11-02T13:56:00Z,site_01,humidity,71.5,40.0,70.0,WARNING
+2025-11-02T14:07:00Z,site_02,ventilation,2.12,0.8,2.0,WARNING
+2025-11-02T15:18:00Z,site_03,temperature,26.0,20.0,26.0,WARNING
+2025-11-02T16:29:00Z,site_04,humidity,71.5,40.0,70.0,WARNING
+2025-11-02T17:40:00Z,site_05,ventilation,2.12,0.8,2.0,WARNING
+2025-11-02T08:51:00Z,site_01,temperature,26.0,20.0,26.0,WARNING
+2025-11-02T09:02:00Z,site_02,humidity,71.5,40.0,70.0,WARNING
+2025-11-02T10:13:00Z,site_03,ventilation,2.12,0.8,2.0,WARNING
+2025-11-02T11:24:00Z,site_04,temperature,26.0,20.0,26.0,WARNING
+2025-11-02T12:35:00Z,site_05,humidity,71.5,40.0,70.0,WARNING
+2025-11-02T13:46:00Z,site_01,ventilation,2.12,0.8,2.0,WARNING
+2025-11-02T14:57:00Z,site_02,temperature,26.0,20.0,26.0,WARNING
+2025-11-02T15:08:00Z,site_03,humidity,71.5,40.0,70.0,WARNING
+2025-11-02T16:19:00Z,site_04,ventilation,2.12,0.8,2.0,WARNING
+2025-11-02T17:30:00Z,site_05,temperature,29.0,20.0,26.0,CRITICAL
+2025-11-02T08:41:00Z,site_01,humidity,85.0,40.0,70.0,CRITICAL
+2025-11-02T09:52:00Z,site_02,ventilation,2.6,0.8,2.0,CRITICAL
+2025-11-02T10:03:00Z,site_03,temperature,29.0,20.0,26.0,CRITICAL
+2025-11-02T11:14:00Z,site_04,humidity,85.0,40.0,70.0,CRITICAL
+2025-11-02T12:25:00Z,site_05,ventilation,2.6,0.8,2.0,CRITICAL
+2025-11-02T13:36:00Z,site_01,temperature,29.0,20.0,26.0,CRITICAL
+2025-11-02T14:47:00Z,site_02,humidity,85.0,40.0,70.0,CRITICAL
+2025-11-02T15:58:00Z,site_03,ventilation,,0.8,2.0,STALE
+2025-11-02T16:09:00Z,site_04,temperature,,20.0,26.0,STALE
+2025-11-02T17:20:00Z,site_05,humidity,40.0,40.0,70.0,NORMAL
+</script>
+
+<script>
+/* ===================================================================================================
+ * СИТУАЦИОННЫЙ ЦЕНТР (птицеводческое предприятие) — прототип в одном файле. КАРТА КОДА:
+ *   js/utils.js   — часы системы (симуляция), SHA-256/HMAC, форматирование, CSV, уведомления
+ *   js/data.js    — справочники, загрузка состояния из трёх встроенных CSV (sites / incidents / indicators)
+ *   js/store.js   — «БЭКЕНД»: RBAC по зонам, жизненный цикл, аудит (append-only), телеметрия с HMAC,
+ *                   правила A-3 / A-4 / A-5, просрочка (дедлайн = создание + 4 ч), симуляция времени
+ *   js/views/*    — экраны ролей: диспетчер (и руководитель), рабочий, администратор
+ *   js/app.js     — шапка, переключатель ролей, панель симуляции, стенд датчиков
+ * Серверный аналог правил: backend/sc_backend.py. Исходные CSV в файле НЕ изменяются.
+ * Состояние пользователя хранится в localStorage (ключ KEY в store.js).
+ * =================================================================================================== */
+/* ===== js/utils.js ===== */
+(function () {
+  const SC = (window.SC = window.SC || {});
+  const U = (SC.utils = {});
+  // Дополняет число нулём слева до 2 знаков (5 → «05») — для форматирования даты и времени
+  const p2 = (n) => String(n).padStart(2, '0');
+
+  // «Время системы» — симулируемое: стартует со времени самого первого инцидента в данных, реальное время ПК не используется
+  // как точка отсчёта. Идёт только при запущенной симуляции (▶), скорость и позицию можно менять.
+  let base = 0, t0 = Date.now(), speed = 60, running = false;
+  // Часы системы: ставит текущее ВРЕМЯ СИМУЛЯЦИИ (мс). Реальное время ПК как точка отсчёта не используется
+  U.setBase = (ms) => { base = ms; t0 = Date.now(); };
+  // Текущее время системы (мс). На паузе стоит на месте, при запуске идёт со скоростью speed (×1, ×60 ...)
+  U.now = () => (running ? base + (Date.now() - t0) * speed : base);
+  // Меняет скорость хода времени, не сбивая текущее значение часов
+  U.setSpeed = (k) => { base = U.now(); t0 = Date.now(); speed = k; };
+  // Текущая скорость симуляции (множитель)
+  U.speed = () => speed;
+  // Запуск/пауза хода времени симуляции
+  U.setRunning = (on) => { base = U.now(); t0 = Date.now(); running = !!on; };
+  // Идёт ли сейчас симуляция
+  U.running = () => running;
+
+  // --- SHA-256 / HMAC-SHA256 (синхронно, без зависимостей; сверено с Python hmac и node:crypto) ---
+  const PR = [];
+  for (let n = 2; PR.length < 64; n++) { let ok = true; for (let d = 2; d * d <= n; d++) if (n % d === 0) { ok = false; break; } if (ok) PR.push(n); }
+  // SHA-256 / HMAC-SHA256 на чистом JS (в браузере нет синхронного API). Результаты сверены с node:crypto и Python
+  const f32 = (x) => Math.floor((x - Math.floor(x)) * 4294967296) >>> 0;
+  const K256 = PR.map((p) => f32(Math.cbrt(p)));
+  const H256 = PR.slice(0, 8).map((p) => f32(Math.sqrt(p)));
+  const rr = (x, n) => (x >>> n) | (x << (32 - n));
+  // Считает SHA-256 от массива байт, возвращает массив из 32 байт
+  function sha256Bytes(msg) {
+    const l = msg.length, buf = new Uint8Array(((l + 9 + 63) >> 6) << 6);
+    buf.set(msg); buf[l] = 0x80;
+    const dv = new DataView(buf.buffer);
+    dv.setUint32(buf.length - 8, Math.floor(l / 0x20000000)); dv.setUint32(buf.length - 4, (l << 3) >>> 0);
+    const h = H256.slice(), w = new Uint32Array(64);
+    for (let o = 0; o < buf.length; o += 64) {
+      for (let i = 0; i < 16; i++) w[i] = dv.getUint32(o + i * 4);
+      for (let i = 16; i < 64; i++) {
+        const s0 = rr(w[i - 15], 7) ^ rr(w[i - 15], 18) ^ (w[i - 15] >>> 3), s1 = rr(w[i - 2], 17) ^ rr(w[i - 2], 19) ^ (w[i - 2] >>> 10);
+        w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
+      }
+      let [a, b, c, d, e, f, g, hh] = h;
+      for (let i = 0; i < 64; i++) {
+        const t1 = (hh + (rr(e, 6) ^ rr(e, 11) ^ rr(e, 25)) + ((e & f) ^ (~e & g)) + K256[i] + w[i]) >>> 0;
+        const t2 = ((rr(a, 2) ^ rr(a, 13) ^ rr(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) >>> 0;
+        hh = g; g = f; f = e; e = (d + t1) >>> 0; d = c; c = b; b = a; a = (t1 + t2) >>> 0;
+      }
+      [a, b, c, d, e, f, g, hh].forEach((v, i) => { h[i] = (h[i] + v) >>> 0; });
+    }
+    const out = new Uint8Array(32), ov = new DataView(out.buffer);
+    h.forEach((v, i) => ov.setUint32(i * 4, v));
+    return out;
+  }
+  // Байты → строка из hex-цифр
+  const hexOf = (u8) => Array.from(u8, (b) => b.toString(16).padStart(2, '0')).join('');
+  // Строка → байты UTF-8
+  U.utf8 = (s) => new TextEncoder().encode(String(s));
+  // SHA-256 строки в hex (используется для цепочки хэшей аудита)
+  U.sha256Hex = (s) => hexOf(sha256Bytes(U.utf8(s)));
+  // HMAC-SHA256(ключ, сообщение) в hex — подпись событий датчиков
+  U.hmacSha256Hex = (key, msg) => {
+    let k = U.utf8(key);
+    if (k.length > 64) k = sha256Bytes(k);
+    const kk = new Uint8Array(64); kk.set(k);
+    const m = U.utf8(msg), inner = new Uint8Array(64 + m.length);
+    for (let i = 0; i < 64; i++) inner[i] = kk[i] ^ 0x36;
+    inner.set(m, 64);
+    const outer = new Uint8Array(96);
+    for (let i = 0; i < 64; i++) outer[i] = kk[i] ^ 0x5c;
+    outer.set(sha256Bytes(inner), 64);
+    return hexOf(sha256Bytes(outer));
+  };
+  // сравнение без раннего выхода (аналог hmac.compare_digest)
+  U.safeEqual = (a, b) => {
+    a = String(a); b = String(b);
+    let d = a.length ^ b.length;
+    for (let i = 0; i < Math.max(a.length, b.length); i++) d |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
+    return d === 0;
+  };
+
+  // Экранирует HTML-символы, чтобы данные пользователя нельзя было использовать для внедрения кода (XSS)
+  U.esc = (s) =>
+    String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  // Дата-время для таблиц: ДД.ММ.ГГГГ ЧЧ:ММ (в часовом поясе браузера, у нас МСК)
+  U.fmtDT = (v) => {
+    const d = new Date(v);
+    return isNaN(d) ? '—' : `${p2(d.getDate())}.${p2(d.getMonth() + 1)}.${d.getFullYear()} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
+  };
+  // Дата-время с секундами для часов в шапке
+  U.fmtClock = (v) => {
+    const d = new Date(v);
+    return `${p2(d.getDate())}.${p2(d.getMonth() + 1)}.${d.getFullYear()} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`;
+  };
+  // Дата → формат для input type=datetime-local
+  U.toLocalInput = (v) => {
+    const d = new Date(v);
+    if (isNaN(d)) return '';
+    return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}`;
+  };
+  // Значение input type=datetime-local → ISO-строка (UTC)
+  U.fromLocalInput = (s) => {
+    const d = new Date(s);
+    if (isNaN(d)) throw new Error('Некорректная дата');
+    return d.toISOString();
+  };
+  // Текст «осталось 2 ч 10 мин» / «просрочен на 15 мин» относительно времени системы
+  U.relative = (v, now = U.now()) => {
+    const ms = new Date(v) - now;
+    const abs = Math.abs(ms);
+    const h = Math.floor(abs / 3600000);
+    const m = Math.floor((abs % 3600000) / 60000);
+    const txt = h >= 24 ? `${Math.floor(h / 24)} д ${h % 24} ч` : h > 0 ? `${h} ч ${m} мин` : `${m} мин`;
+    return ms < 0 ? `просрочен на ${txt}` : `осталось ${txt}`;
+  };
+
+  // Разбор CSV (кавычки, запятые внутри значений) → массив объектов по заголовкам
+  U.parseCSV = (text) => {
+    text = String(text).replace(/^\uFEFF/, '');
+    const rows = [];
+    let row = [], cur = '', q = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (q) {
+        if (c === '"' && text[i + 1] === '"') { cur += '"'; i++; }
+        else if (c === '"') q = false;
+        else cur += c;
+      } else if (c === '"') q = true;
+      else if (c === ',') { row.push(cur); cur = ''; }
+      else if (c === '\n' || c === '\r') {
+        if (c === '\r' && text[i + 1] === '\n') i++;
+        row.push(cur); cur = '';
+        if (row.some((x) => x !== '')) rows.push(row);
+        row = [];
+      } else cur += c;
+    }
+    row.push(cur);
+    if (row.some((x) => x !== '')) rows.push(row);
+    if (!rows.length) return [];
+    const head = rows[0].map((h) => h.trim());
+    return rows.slice(1).map((r) => Object.fromEntries(head.map((h, i) => [h, (r[i] ?? '').trim()])));
+  };
+  // Массив объектов → текст CSV с заданным порядком колонок
+  U.toCSV = (rows, cols) => {
+    const cell = (v) => {
+      const s = String(v ?? '');
+      return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    return [cols.join(','), ...rows.map((r) => cols.map((c) => cell(r[c])).join(','))].join('\n') + '\n';
+  };
+  // Скачивание текста как файла (экспорт CSV)
+  U.download = (name, text, mime = 'text/csv;charset=utf-8') => {
+    const blob = new Blob(['\uFEFF' + text], { type: mime });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+
+  // Всплывающее уведомление в правом нижнем углу (info / ok / error)
+  U.toast = (msg, kind = 'info') => {
+    const box = document.getElementById('toasts');
+    if (!box) return;
+    const t = document.createElement('div');
+    t.className = 'toast ' + kind;
+    t.textContent = msg;
+    box.appendChild(t);
+    setTimeout(() => t.classList.add('out'), 3200);
+    setTimeout(() => t.remove(), 3700);
+  };
+})();
+
+/* ===== js/data.js ===== */
+/* data.js — справочники и загрузка данных из встроенных CSV (sites.csv, incidents.csv, indicators.csv).
+ * Генератора случайных данных больше нет: всё берётся из файлов пользователя. */
+(function () {
+  const SC = (window.SC = window.SC || {});
+  const U = SC.utils;
+  const D = (SC.data = {});
+
+  // Исходные CSV пользователя, встроены в файл без изменений (см. <script type=text/plain> выше)
+  D.RAW = {
+    sites: document.getElementById('csv-sites').textContent,
+    incidents: document.getElementById('csv-incidents').textContent,
+    indicators: document.getElementById('csv-indicators').textContent,
+  };
+
+  // единицы измерения в indicators.csv не заданы — для вентиляции единица не указывается
+  D.INDICATORS = {
+    temperature: { label: 'Температура', unit: '°C' },
+    humidity: { label: 'Влажность', unit: '%' },
+    ventilation: { label: 'Вентиляция', unit: '' },
+  };
+  // Типы инцидентов (значения поля type в incidents.csv) → русские названия
+  D.TYPES = { ventilation: 'Вентиляция', humidity: 'Влажность', equipment: 'Оборудование', temperature: 'Температура', other: 'Прочее' };
+  // Соответствие показателя датчика типу инцидента (для авто-инцидента A-3)
+  D.INDICATOR_TYPE = { temperature: 'temperature', humidity: 'humidity', ventilation: 'ventilation' };
+  // Статусы жизненного цикла инцидента, в порядке переходов
+  D.STATUSES = ['NEW', 'ASSIGNED', 'IN_PROGRESS', 'CLOSED'];
+  // Подписи статусов для интерфейса
+  D.STATUS_LABELS = { NEW: 'Новый', ASSIGNED: 'Назначен', IN_PROGRESS: 'В работе', CLOSED: 'Закрыт' };
+  // Роли пользователей → подписи
+  D.ROLES = { dispatcher: 'Диспетчер', manager: 'Руководитель', worker: 'Рабочий', admin: 'Администратор' };
+  // статусы показаний — как в indicators.csv
+  D.SENSOR_STATUSES = ['NORMAL', 'WARNING', 'CRITICAL', 'STALE', 'DUPLICATE'];
+  // Подписи статусов датчиков
+  D.SENSOR_LABELS = { NORMAL: 'Норма', WARNING: 'Предупреждение', CRITICAL: 'Критично', STALE: 'Нет данных', NODATA: 'Нет данных', DUPLICATE: 'Дубликат' };
+
+  // Статус → имя CSS-класса
+  D.cls = (st) => (st === 'NODATA' ? 'stale' : String(st).toLowerCase());
+  // Код показателя → русское название
+  D.indLabel = (k) => (D.INDICATORS[k] || { label: k }).label;
+  // zone_A → «зона A»
+  D.zoneLabel = (z) => (z ? String(z).replace(/^zone_/i, 'зона ') : '');
+
+  // ИСПРАВЛЕНИЕ «рабочие не могут принять задачу»: в incidents.csv у ВСЕХ инцидентов со статусом NEW уже указан
+  // ответственный (responsible). По жизненному циклу рабочий может взять в работу только ASSIGNED (NEW→IN_PROGRESS запрещён),
+  // поэтому кнопки «Принять в работу» не было, а срок (deadline) истекал. Инцидент с ответственным по смыслу уже назначен,
+  // поэтому в приложении он трактуется как ASSIGNED. Файлы CSV при этом НЕ меняются; исходный статус хранится в file_status.
+  D.normalizeIncident = (inc) => {
+    if (inc.status === 'NEW' && inc.responsible) {
+      inc.file_status = 'NEW'; // исходный статус из файла — нужен для записи в аудите и для прозрачности
+      inc.status = 'ASSIGNED'; // назначен ответственный → статус «Назначен»
+    }
+    return inc;
+  };
+
+  // Строит начальное состояние системы ИЗ ТРЁХ CSV (данные заказчика, менять их нельзя):
+  //   sites.csv → участки и зоны;  incidents.csv → инциденты (source='file');  indicators.csv → показания датчиков (src='file').
+  // Нормы (norm_min/norm_max) показателей берутся из файла. Сотрудники в файлах отсутствуют (там только id рабочих e_101…e_105),
+  // поэтому ФИО, логины и отчества — УСЛОВНЫЕ; участки рабочих выводятся из incidents.csv (responsible → location).
+  // Всё, что пользователь делает в приложении, живёт в этом объекте состояния/localStorage, а не в файлах.
+  D.createStateFromFiles = () => {
+    const sites = U.parseCSV(D.RAW.sites);
+    const inc = U.parseCSV(D.RAW.incidents);
+    const ind = U.parseCSV(D.RAW.indicators);
+
+    const readings = ind
+      .map((r) => ({
+        time: new Date(r.time).toISOString(),
+        location: r.location,
+        indicator: r.indicator,
+        value: r.value === '' ? null : Number(r.value),
+        norm_min: Number(r.norm_min),
+        norm_max: Number(r.norm_max),
+        status: r.status, src: 'file',
+      }))
+      .sort((a, b) => a.time.localeCompare(b.time));
+
+    // нормы по показателям берутся из файла (последняя запись показателя)
+    const thresholds = {};
+    for (const k of Object.keys(D.INDICATORS)) thresholds[k] = { ...D.INDICATORS[k], min: null, max: null };
+    for (const r of readings) {
+      if (!thresholds[r.indicator]) thresholds[r.indicator] = { label: r.indicator, unit: '', min: null, max: null };
+      thresholds[r.indicator].min = r.norm_min;
+      thresholds[r.indicator].max = r.norm_max;
+    }
+
+    const locations = sites.map((s) => ({ id: s.site_id, name: s.name, zone: s.zone }));
+    const incidents = inc.map((r) => D.normalizeIncident({ // normalizeIncident: NEW + ответственный → ASSIGNED (см. комментарий выше)
+      incident_id: r.incident_id, type: r.type, location: r.location,
+      time: new Date(r.time).toISOString(), responsible: r.responsible, status: r.status,
+      deadline: new Date(r.deadline).toISOString(), description: '', source: 'file',
+    }));
+    for (const x of incidents) if (!locations.some((l) => l.id === x.location)) locations.push({ id: x.location, name: x.location, zone: '' });
+
+    const maxNum = incidents.reduce((m, x) => Math.max(m, parseInt(x.incident_id.replace(/\D/g, ''), 10) || 0), 0);
+    const baseMs = Math.min(...incidents.map((x) => +new Date(x.time))); // старт системного времени — первый инцидент в файле
+    // участки сотрудника: у рабочих — из incidents.csv (responsible → location), у остальных — все участки их зон
+    const byResp = {};
+    for (const x of incidents) if (x.responsible) (byResp[x.responsible] = byResp[x.responsible] || new Set()).add(x.location);
+    const sitesOf = (id, zones) => (byResp[id] ? [...byResp[id]].sort() : zones === '*' ? '*' : locations.filter((l) => zones.includes(l.zone)).map((l) => l.id));
+
+    return {
+      session: { role: 'dispatcher', userId: 'e_002' },
+      // ответственные e_101…e_105 взяты из incidents.csv; ФИО (с отчествами) в файлах отсутствуют — подставлены условные
+      users: [
+        { id: 'e_001', name: 'Власова Ирина Андреевна', login: 'admin', role: 'admin', active: true, zones: '*', sites: sitesOf('e_001', '*') },
+        { id: 'e_002', name: 'Орлов Сергей Викторович', login: 'orlov', role: 'dispatcher', active: true, zones: '*', sites: sitesOf('e_002', '*') },
+        { id: 'e_003', name: 'Кузнецова Анна Павловна', login: 'kuznetsova', role: 'dispatcher', active: true, zones: ['zone_A', 'zone_B'], sites: sitesOf('e_003', ['zone_A', 'zone_B']) },
+        { id: 'e_004', name: 'Громов Олег Игоревич', login: 'gromov', role: 'dispatcher', active: true, zones: ['zone_C'], sites: sitesOf('e_004', ['zone_C']) },
+        { id: 'e_005', name: 'Лебедев Виктор Николаевич', login: 'lebedev', role: 'manager', active: true, zones: '*', sites: sitesOf('e_005', '*') },
+        { id: 'e_101', name: 'Смирнов Пётр Алексеевич', login: 'smirnov', role: 'worker', active: true, zones: ['zone_C'], sites: sitesOf('e_101', ['zone_C']) },
+        { id: 'e_102', name: 'Петров Иван Сергеевич', login: 'petrov', role: 'worker', active: true, zones: ['zone_A'], sites: sitesOf('e_102', ['zone_A']) },
+        { id: 'e_103', name: 'Соколова Мария Ивановна', login: 'sokolova', role: 'worker', active: true, zones: ['zone_A'], sites: sitesOf('e_103', ['zone_A']) },
+        { id: 'e_104', name: 'Новиков Алексей Дмитриевич', login: 'novikov', role: 'worker', active: true, zones: ['zone_B'], sites: sitesOf('e_104', ['zone_B']) },
+        { id: 'e_105', name: 'Волков Дмитрий Олегович', login: 'volkov', role: 'worker', active: true, zones: ['zone_B'], sites: sitesOf('e_105', ['zone_B']) },
+      ],
+      locations,
+      thresholds,
+      incidents,
+      readings,
+      comments: [],
+      logs: [{
+        time: new Date(baseMs).toISOString(), user: 'system', role: 'system', action: 'SYSTEM_START', level: 'INFO',
+        details: `Загружено из файлов: участков ${locations.length}, инцидентов ${incidents.length}, показаний ${readings.length}`,
+      }],
+      seq: { incident: maxNum, comment: 0 },
+    };
+  };
+})();
+
+/* ===== js/store.js ===== */
+/* store.js — «backend» прототипа: состояние, RBAC по зонам, строгий жизненный цикл, журнал аудита (append-only),
+ * приём телеметрии с проверкой подписи HMAC-SHA256 и правила A-3 / A-4 / A-5.
+ * Серверный эквивалент с теми же правилами: backend/sc_backend.py (секрет — в переменной окружения).
+ * Здесь ключ подписи — демонстрационный: в браузере секрет хранить нельзя, это только эмуляция шлюза. */
+(function () {
+  const SC = (window.SC = window.SC || {});
+  const D = SC.data, U = SC.utils;
+  const KEY = 'sc-proto-state-v6'; // v6: инциденты NEW с ответственным трактуются как ASSIGNED (старое сохранение не подходит) // v4: пользователи с отчеством и участками, дедлайн автоматический, симулируемое время
+  const GENESIS = '0'.repeat(64);
+  const SENSOR_KEY = 'demo-only-key-NOT-A-SECRET'; // продакшн: SENSOR_HMAC_SECRET в окружении сервера
+  // Временные константы правил (в миллисекундах):
+  //   DEDUP_MS  — A-5: окно дедупликации, 5 минут. Повтор того же датчика в пределах окна = DUPLICATE, алерт не создаётся.
+  //   CRIT_MS   — A-3: окно 15 минут: два CRITICAL подряд внутри окна → автоматический инцидент.
+  //   STALE_MS  — A-4: если от датчика нет данных дольше 5 минут → статус STALE + эскалация руководителю.
+  //   TTL_MS    — срок инцидента 4 часа: deadline = время создания + TTL_MS (ставится автоматически, вручную не меняется).
+  const DEDUP_MS = 5 * 60000, CRIT_MS = 15 * 60000, STALE_MS = 5 * 60000, TTL_MS = 4 * 3600000;
+  // ЖИЗНЕННЫЙ ЦИКЛ инцидента: из какого статуса в какие можно перейти. Единственный допустимый путь:
+  //   NEW → ASSIGNED → IN_PROGRESS → CLOSED.  Пропускать шаги нельзя (NEW → IN_PROGRESS запрещён),
+  //   назад идти нельзя, а из CLOSED выхода нет вообще (закрытый инцидент не переоткрывается — создаётся новый).
+  const ALLOWED = { NEW: ['ASSIGNED'], ASSIGNED: ['IN_PROGRESS'], IN_PROGRESS: ['CLOSED'], CLOSED: [] };
+
+  // ПРАВА (RBAC). DISPATCH — набор прав диспетчера. Руководитель получает всё то же + эскалации и аудит.
+  // Рабочий видит и ведёт только свои задачи. Администратор управляет пользователями/справочниками/реестром, инциденты не ведёт.
+  // Право проверяется функцией guard(); доступ к УЧАСТКУ (зоне) — отдельно функцией zoneGuard().
+  const DISPATCH = ['sensors.view', 'incident.view_all', 'incident.create', 'incident.status', 'incident.assign', 'incident.comment'];
+  const PERMS = {
+    dispatcher: DISPATCH,
+    manager: [...DISPATCH, 'escalations.view', 'audit.view'],
+    worker: ['incident.view_own', 'incident.take', 'incident.close', 'incident.comment'],
+    admin: ['sensors.view', 'users.manage', 'directory.manage', 'logs.view', 'registry.view', 'audit.view'],
+  };
+
+  class AccessError extends Error {}
+  // Бизнес-ошибка с машинным кодом (поле code): LIFECYCLE_TRANSITION_FORBIDDEN, ZONE_ACCESS_DENIED, SENSOR_SIGNATURE_INVALID,
+  // INCIDENT_OVERDUE и т.д. Интерфейс показывает текст, тесты и API проверяют code.  AccessError выше — «нет прав у роли».
+  class ScError extends Error {
+    constructor(code, msg) { super(msg ? `${code}: ${msg}` : code); this.code = code; }
+  }
+  const S = (SC.store = { PERMS, AccessError, ScError, ALLOWED });
+  const subs = new Set();
+  let state = load();
+  initClock();
+  ensureBaselineAudit();
+
+  // Загрузка состояния при старте страницы.
+  //   1) Пробуем прочитать сохранённое состояние из localStorage (ключ KEY) и проверяем, что оно целое (есть readings/incidents/audit).
+  //   2) Если нет (первый запуск, другая версия ключа, пустое хранилище) — строим состояние из трёх CSV: D.createStateFromFiles().
+  //   3) Добиваем отсутствующие поля значениями по умолчанию (на случай состояния, сохранённого более старой версией кода).
+  //   4) Замораживаем (Object.freeze) все записи аудита — они неизменяемы и после перезагрузки.
+  function load() {
+    let s = null;
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (raw) {
+        const p = JSON.parse(raw);
+        if (p && Array.isArray(p.readings) && Array.isArray(p.incidents) && Array.isArray(p.audit)) s = p;
+      }
+    } catch (e) { /* нет localStorage — работаем в памяти */ }
+    if (!s) s = D.createStateFromFiles();
+    for (const k of ['alerts', 'escalations', 'audit']) s[k] = s[k] || [];
+    for (const k of ['live', 'staleOpen', 'seen']) s[k] = s[k] || {};
+    s.tstats = s.tstats || { accepted: 0, duplicate: 0, rejected: 0 };
+    s.seq.alert = s.seq.alert || 0; s.seq.esc = s.seq.esc || 0;
+    s.audit.forEach(Object.freeze); // записи аудита неизменяемы и после загрузки
+    return s;
+  }
+  // Точка отсчёта системного времени: время САМОГО РАННЕГО инцидента среди загруженных данных (по ТЗ), реальные часы ПК не используются.
+  // Симуляция при этом стоит на паузе — время пойдёт только после нажатия ▶ в шапке.
+  // Для данных заказчика это 01.11.2025 08:00 UTC (11:00 по Москве).
+  function initClock() {
+    let m = Infinity;
+    state.incidents.forEach((i) => { const t = new Date(i.time).getTime(); if (t < m) m = t; });
+    U.setBase(isFinite(m) ? m : 0);
+    U.setRunning(false);
+  }
+  // Сохраняет состояние в localStorage (в реальной системе здесь была бы БД)
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+  // ЕДИНАЯ ТОЧКА ИЗМЕНЕНИЯ ДАННЫХ. Каждая операция, которая что-то меняет, заканчивается вызовом emit(тема):
+  //   — сохраняет состояние (save), — оповещает все подписанные экраны, чтобы они перерисовались.
+  // Темы: 'incidents' (инциденты), 'telemetry' (датчики/алерты), 'logs', 'directory', 'admin' (пользователи), 'session' (смена роли).
+  function emit(topic) { save(); subs.forEach((f) => f(topic)); }
+  // Подписка интерфейса на изменения данных; возвращает функцию отписки
+  S.subscribe = (fn) => { subs.add(fn); return () => subs.delete(fn); };
+
+  // ---------- сессия, права, зоны ----------
+  S.session = () => state.session;
+  // Текущий пользователь (объект)
+  S.currentUser = () => state.users.find((u) => u.id === state.session.userId);
+  // RBAC: есть ли у текущей роли право perm
+  S.can = (perm) => (PERMS[state.session.role] || []).includes(perm);
+  // Зона участка (site_01 → zone_A) по справочнику sites
+  S.zoneOf = (loc) => (state.locations.find((l) => l.id === loc) || {}).zone || '';
+  // Список всех зон
+  S.zones = () => [...new Set(state.locations.map((l) => l.zone).filter(Boolean))].sort();
+  // ZONE-BASED RBAC. Участок принадлежит зоне (sites.csv: site_01/02 → zone_A, site_03/04 → zone_B, site_05 → zone_C).
+  // Пользователь видит участок, только если зона участка входит в его список zones. Значение '*' = все зоны
+  // (старший диспетчер, руководитель, администратор). Именно эта функция отрезает диспетчеру чужие зоны.
+  S.userHasZone = (u, loc) => !!u && (u.zones === '*' || (u.zones || []).includes(S.zoneOf(loc)));
+  // Видит ли текущий пользователь участок loc
+  S.canSee = (loc) => S.userHasZone(S.currentUser(), loc);
+  // Участки, доступные текущему пользователю
+  S.visibleLocations = () => state.locations.filter((l) => S.canSee(l.id));
+  // Подпись «за какие участки отвечает сотрудник» (выводится рядом с ФИО)
+  S.sitesLabel = (u) => (!u ? '' : u.sites === '*' ? 'все участки' : (u.sites || []).join(', ') || 'участки не назначены');
+  // Подпись зон сотрудника
+  S.zonesLabel = (u) => (u.zones === '*' ? 'все зоны' : (u.zones || []).map((z) => D.zoneLabel(z)).join(', ') || 'нет зон');
+
+  // ДЕМО-переключатель роли (кнопки вверху экрана). В настоящей системе роль определяется входом по логину/паролю.
+  // Берёт первого активного пользователя этой роли (диспетчер → Орлов, рабочий → Смирнов и т.д.), запоминает в сессии,
+  // пишет ROLE_SWITCH в системный журнал и перерисовывает интерфейс (тема 'session').
+  S.setRole = (role) => {
+    if (!PERMS[role]) throw new Error('Неизвестная роль');
+    const u = state.users.find((x) => x.role === role && x.active);
+    if (!u) throw new Error('Нет активных пользователей с ролью ' + D.ROLES[role]);
+    state.session = { role, userId: u.id };
+    log('ROLE_SWITCH', `Переключение на роль «${D.ROLES[role]}» (${u.name})`);
+    emit('session');
+  };
+  // Вход под конкретным пользователем той же роли
+  S.setUser = (id) => {
+    const u = state.users.find((x) => x.id === id && x.active);
+    if (!u) throw new Error('Пользователь не найден');
+    state.session = { role: u.role, userId: u.id };
+    log('USER_SWITCH', `Вход как ${u.name} (${D.ROLES[u.role]}, ${S.zonesLabel(u)})`);
+    emit('session');
+  };
+
+  // СИСТЕМНЫЙ журнал — технические события (вход, смена роли, отказ в доступе, отклонённая телеметрия, просрочка ...).
+  // Хранит последние 500 записей, может быть изменён/ротирован. Отличие от аудита: аудит (audit()) — юридически значимые
+  // действия над инцидентами и алертами, он неизменяем (append-only). level: INFO / WARN. sys — имя системного источника.
+  function log(action, details, level = 'INFO', sys) {
+    const u = state.users.find((x) => x.id === state.session.userId);
+    state.logs.unshift({ time: new Date(U.now()).toISOString(), user: sys || (u ? u.name : 'system'), role: sys ? 'system' : state.session.role, action, details, level });
+    if (state.logs.length > 500) state.logs.length = 500;
+  }
+  // Проверка права РОЛИ на действие. Нет права → запись ACCESS_DENIED в журнал + AccessError (интерфейс покажет уведомление).
+  // Вызывается в начале каждой операции store (S.createIncident, S.assign, S.saveUser ...).
+  function guard(perm) {
+    if (!S.can(perm)) {
+      log('ACCESS_DENIED', `Роль «${D.ROLES[state.session.role]}» не имеет права ${perm}`, 'WARN');
+      emit('logs');
+      throw new AccessError('Недостаточно прав для этого действия');
+    }
+  }
+  // Проверка доступа к УЧАСТКУ: участок вне зон текущего пользователя → ZONE_ACCESS_DENIED.
+  // Даже диспетчер с правом incident.assign не может трогать инциденты чужой зоны (zone-based RBAC).
+  function zoneGuard(loc) {
+    if (!S.canSee(loc)) {
+      log('ACCESS_DENIED', `Участок ${loc} (${S.zoneOf(loc)}) вне зон пользователя ${S.currentUser().name}`, 'WARN');
+      emit('logs');
+      throw new ScError('ZONE_ACCESS_DENIED', `участок ${loc} (${D.zoneLabel(S.zoneOf(loc))}) вне ваших зон`);
+    }
+  }
+  // Найти инцидент по id или бросить ошибку
+  const findInc = (id) => {
+    const i = state.incidents.find((x) => x.incident_id === id);
+    if (!i) throw new Error('Инцидент не найден: ' + id);
+    return i;
+  };
+  // Рабочий может менять только СВОИ задачи (inc.responsible === его id). Чужая задача → отказ + запись в журнал.
+  function ownOrDeny(inc) {
+    if (inc.responsible !== state.session.userId) {
+      log('ACCESS_DENIED', `Попытка работать с чужим инцидентом ${inc.incident_id}`, 'WARN');
+      emit('logs');
+      throw new AccessError('Это задача другого сотрудника');
+    }
+  }
+
+  // ---------- журнал аудита (append-only, цепочка хэшей) ----------
+  function auditPayload(r) { return [r.event_id, r.entity_type, r.entity_id, r.action, r.from_status, r.to_status, r.actor, r.at, r.ip, r.details, r.prev_hash].join('|'); } // function: вызывается до инициализации остальных const
+  // IP для записи аудита. В браузере настоящего адреса нет — подставляется демо-адрес; на сервере брать из запроса
+  function ipFor(actor) {
+    if (actor === 'system' || actor === 'sensor-gateway') return '127.0.0.1';
+    return '10.10.0.' + (((parseInt(String(actor).replace(/\D/g, ''), 10) || 0) % 250) + 1); // демо-IP: в браузере реальный адрес недоступен
+  }
+  // ЖУРНАЛ АУДИТА (AuditEvent), append-only. Одна запись = одно значимое действие:
+  //   event_id (aud_00001 ...), entity_type ('incident'|'alert'), entity_id, action ('created'|'assigned'|'status_changed'|'closed'),
+  //   from_status → to_status, actor (кто: id пользователя или 'system'/'sensor-gateway'), at (ISO-время СИСТЕМЫ), ip, details.
+  // ЦЕПОЧКА ХЭШЕЙ: в каждую запись пишется prev_hash (хэш предыдущей) и hash = SHA-256 от всех полей записи.
+  // Если кто-то подправит или удалит запись в середине, цепочка порвётся, и verifyAudit() это покажет.
+  // Запись замораживается Object.freeze — менять её в коде нельзя. API изменения/удаления нет (см. appendOnly).
+  function audit(type, id, action, from, to, details, o) {
+    o = o || {};
+    const actor = o.actor || (state.session && state.session.userId) || 'system';
+    const prev = state.audit.length ? state.audit[state.audit.length - 1].hash : GENESIS;
+    const rec = {
+      event_id: 'aud_' + String(state.audit.length + 1).padStart(5, '0'), entity_type: type, entity_id: id, action,
+      from_status: from == null ? null : from, to_status: to == null ? null : to, actor,
+      at: o.at || new Date(U.now()).toISOString(), ip: ipFor(actor), details: details || '', prev_hash: prev,
+    };
+    rec.hash = U.sha256Hex(auditPayload(rec));
+    state.audit.push(Object.freeze(rec));
+  }
+  // При самом первом запуске (аудит пуст) заносим в журнал исторические инциденты из файла как 'created' с временем самого инцидента,
+  // чтобы у каждого инцидента была точка начала истории. Если статус был нормализован (NEW + ответственный → ASSIGNED),
+  // в details пишется исходный статус из файла.
+  function ensureBaselineAudit() {
+    if (state.audit.length) return;
+    [...state.incidents].sort((a, b) => a.time.localeCompare(b.time)).forEach((i) =>
+      audit('incident', i.incident_id, 'created', null, i.status, 'импорт из incidents.csv (исторические данные)' + (i.file_status ? `; в файле статус ${i.file_status}, но ответственный ${i.responsible} указан — принят как ${i.status}` : ''), { actor: 'system', at: i.time })); // пометка для аудита, если статус нормализован
+  }
+  // Чтение журнала аудита (право audit.view: руководитель, админ)
+  S.auditLog = () => { guard('audit.view'); return state.audit.slice(); };
+  // Проверка целостности цепочки хэшей; возвращает место разрыва, если запись подделана
+  S.verifyAudit = () => {
+    guard('audit.view');
+    let prev = GENESIS;
+    for (let i = 0; i < state.audit.length; i++) {
+      const r = state.audit[i];
+      if (r.prev_hash !== prev || r.hash !== U.sha256Hex(auditPayload(r))) return { ok: false, at: i, total: state.audit.length };
+      prev = r.hash;
+    }
+    return { ok: true, total: state.audit.length };
+  };
+  // API изменения/удаления отсутствует по замыслу; эти методы лишь явно отказывают (и пишут попытку в системный журнал)
+  const appendOnly = (what) => () => {
+    log('AUDIT_TAMPER_ATTEMPT', `Попытка ${what} записей аудита отклонена`, 'WARN');
+    emit('logs');
+    throw new ScError('AUDIT_APPEND_ONLY', `${what} записей аудита запрещено`);
+  };
+  // Попытка изменения записи аудита → всегда отказ AUDIT_APPEND_ONLY
+  S.auditUpdate = appendOnly('изменения');
+  // Попытка удаления записи аудита → всегда отказ AUDIT_APPEND_ONLY
+  S.auditDelete = appendOnly('удаления');
+
+  // ---------- чтение ----------
+  S.users = () => state.users.slice();
+  // ФИО по id
+  S.userName = (id) => (state.users.find((u) => u.id === id) || {}).name || (id || '—');
+  // Список участков
+  S.locations = () => state.locations.slice();
+  // Название участка по коду
+  S.locName = (id) => (state.locations.find((l) => l.id === id) || {}).name || id;
+  // Нормы датчиков (min/max) по показателям — из indicators.csv
+  S.thresholds = () => state.thresholds;
+  // Комментарии к инциденту
+  S.comments = (id) => state.comments.filter((c) => c.incident_id === id);
+  // ПРОСРОЧЕН ЛИ ИНЦИДЕНТ: статус не CLOSED и deadline (создание + 4 ч) уже раньше ТЕКУЩЕГО ВРЕМЕНИ СИСТЕМЫ (не часов компьютера).
+  // Используется и для подсветки в таблицах, и для запрета брать задачу в работу (S.changeStatus), и для алерта OVERDUE.
+  S.isOverdue = (i) => i.status !== 'CLOSED' && new Date(i.deadline) < U.now();
+
+  // Записи из файлов существуют только с момента своего времени; созданные в сеансе (manual/auto) видны всегда
+  const seenIncident = (i) => i.source !== 'file' || new Date(i.time).getTime() <= U.now();
+  // То же для показаний датчиков (файловых и симулированных)
+  const seenReading = (r) => (r.src !== 'file' && r.src !== 'sim') || new Date(r.time).getTime() <= U.now();
+  // Какие инциденты видит текущий пользователь:
+  //   — диспетчер/руководитель: все инциденты СВОИХ зон; — рабочий: только назначенные ему (и только в его зонах).
+  // Инциденты из файла показываются, только когда время системы дошло до их времени (seenIncident) — так работает «проигрывание» данных.
+  S.listIncidents = () => {
+    if (S.can('incident.view_all')) return state.incidents.filter((i) => seenIncident(i) && S.canSee(i.location));
+    if (S.can('incident.view_own')) return state.incidents.filter((i) => seenIncident(i) && i.responsible === state.session.userId && S.canSee(i.location));
+    guard('incident.view_all');
+  };
+
+  const FINAL = { CLOSED: 1, RESOLVED: 1 };
+  // Собирает для мониторинга состояние КАЖДОГО датчика (участок × показатель): последнее показание, его статус, норму,
+  // последнее валидное значение и историю для мини-графика (последние 12 точек). Если показаний ещё нет — статус NODATA.
+  // Учитываются только показания, которые «уже случились» по времени системы (seenReading), поэтому графики меняются по ходу симуляции.
+  function computeSensors() {
+    const out = [];
+    for (const l of S.visibleLocations()) {
+      for (const [ind, th] of Object.entries(state.thresholds)) {
+        const hist = state.readings.filter((r) => seenReading(r) && r.location === l.id && r.indicator === ind && r.status !== 'DUPLICATE');
+        const last = hist[hist.length - 1];
+        const valid = hist.filter((r) => r.value != null);
+        out.push({
+          location: l.id, indicator: ind, label: th.label, unit: th.unit,
+          min: last ? last.norm_min : th.min, max: last ? last.norm_max : th.max,
+          status: last ? last.status : 'NODATA', value: last ? last.value : null, time: last ? last.time : null,
+          lastValid: valid[valid.length - 1] || null,
+          history: hist.slice(-12).map((r) => ({ t: r.time, v: r.value })),
+        });
+      }
+    }
+    return out;
+  }
+  // Датчики для мониторинга (с проверкой права и зон)
+  S.sensors = () => { guard('sensors.view'); return computeSensors(); };
+  // Таблица показаний (без симулированных «живых» точек)
+  S.readings = () => { guard('sensors.view'); return state.readings.filter((r) => r.src !== 'sim' && seenReading(r) && S.canSee(r.location)); };
+  // Алерты (по датчикам и просрочкам), видимые пользователю, новые сверху
+  S.alertList = () => { guard('sensors.view'); return state.alerts.filter((a) => S.canSee(a.location)).slice().reverse(); };
+  // Эскалации руководителю (правило A-4)
+  S.escalations = () => { guard('escalations.view'); return state.escalations.filter((x) => S.canSee(x.location)).slice().reverse(); };
+  // Системный журнал
+  S.logs = () => { guard('logs.view'); return state.logs.slice(); };
+  // Счётчики телеметрии: принято / дубликатов / отклонено
+  S.telemetryStats = () => ({ ...state.tstats });
+  // Реестр данных (то, что лежит в CSV) для админа
+  S.registry = () => { guard('registry.view'); return { incidents: state.incidents.slice(), readings: state.readings.filter((r) => r.src !== 'sim') }; };
+
+  // ---------- инциденты: зоны и строгий жизненный цикл ----------
+  const pad = (n, w = 3) => String(n).padStart(w, '0');
+  // Создаёт запись инцидента. Время создания = время системы, дедлайн = created_at + 4 часа (автоматически, вручную не задаётся)
+  function newIncident(p) {
+    const inc = {
+      incident_id: `inc_${pad(++state.seq.incident)}`, type: p.type, location: p.location, time: new Date(U.now()).toISOString(),
+      responsible: '', status: 'NEW', deadline: new Date(U.now() + TTL_MS).toISOString(), description: p.description || '', source: p.source || 'manual',
+      related_to: p.related_to || '', alert_id: p.alert_id || '',
+    };
+    state.incidents.push(inc);
+    return inc;
+  }
+  // СОЗДАНИЕ ИНЦИДЕНТА ВРУЧНУЮ (форма «Создать инцидент»). Входные данные: type, location, description, responsible (необязательно).
+  // Время создания и дедлайн НЕ принимаются от пользователя — ставятся автоматически (время системы и +4 часа).
+  // Проверки: право incident.create, тип из справочника, участок из sites.csv, участок в зонах пользователя.
+  // Результат: инцидент в статусе NEW (или ASSIGNED, если сразу выбран ответственный) + запись аудита 'created'.
+  S.createIncident = (p) => {
+    guard('incident.create');
+    if (!D.TYPES[p.type]) throw new Error('Неверный тип инцидента');
+    if (!state.locations.some((l) => l.id === p.location)) throw new Error('Неизвестный участок');
+    zoneGuard(p.location);
+    const inc = newIncident(p);
+    audit('incident', inc.incident_id, 'created', null, 'NEW', `source=${inc.source}` + (inc.related_to ? `; related_to=${inc.related_to}` : ''));
+    if (p.responsible) assignInternal(inc, p.responsible);
+    log('INCIDENT_CREATE', `${inc.incident_id}: ${D.TYPES[inc.type]} / ${inc.location}`);
+    emit('incidents');
+    return inc;
+  };
+  // Назначение ответственного (общая часть для формы создания и для таблицы). Правила:
+  //   — назначить можно только активного РАБОЧЕГО; — у него должен быть доступ к зоне участка;
+  //   — переназначать можно только пока инцидент NEW или ASSIGNED (в работе/закрытый — нельзя).
+  // Статус становится ASSIGNED, в аудит пишется 'assigned' (assignee=...).
+  function assignInternal(inc, userId) {
+    const u = state.users.find((x) => x.id === userId);
+    if (!u || u.role !== 'worker' || !u.active) throw new Error('Ответственным можно назначить только активного рабочего');
+    if (!S.userHasZone(u, inc.location)) throw new ScError('ZONE_ACCESS_DENIED', `${u.name} не допущен к зоне ${D.zoneLabel(S.zoneOf(inc.location))}`);
+    if (inc.status !== 'NEW' && inc.status !== 'ASSIGNED') throw new ScError('LIFECYCLE_TRANSITION_FORBIDDEN', 'переназначение возможно только для «Новый» и «Назначен»');
+    const from = inc.status;
+    inc.responsible = userId;
+    inc.status = 'ASSIGNED';
+    audit('incident', inc.incident_id, 'assigned', from, 'ASSIGNED', `assignee=${userId}`);
+  }
+  // Назначить/переназначить ответственного (аудит: 'assigned')
+  S.assign = (id, userId) => {
+    guard('incident.assign');
+    const inc = findInc(id);
+    zoneGuard(inc.location);
+    if (inc.status === 'CLOSED') throw new ScError('LIFECYCLE_REOPEN_FORBIDDEN', 'закрытый инцидент неизменяем — создайте новый');
+    if (!userId) {
+      if (inc.status === 'NEW') return;
+      throw new ScError('LIFECYCLE_TRANSITION_FORBIDDEN', 'снять ответственного нельзя — переназначьте на другого рабочего');
+    }
+    assignInternal(inc, userId);
+    log('INCIDENT_ASSIGN', `${id} → ${S.userName(userId)}`);
+    emit('incidents');
+  };
+  // СМЕНА СТАТУСА — сердце жизненного цикла. Порядок проверок:
+  //   1) участок в зонах пользователя;  2) право: рабочий — incident.take (в работу) или incident.close (закрыть) и только по СВОЕЙ задаче;
+  //      остальные роли — incident.status;  3) рабочий не может взять в работу ПРОСРОЧЕННУЮ задачу (INCIDENT_OVERDUE);
+  //   4) из CLOSED выхода нет (LIFECYCLE_REOPEN_FORBIDDEN);  5) переход должен быть в таблице ALLOWED (иначе LIFECYCLE_TRANSITION_FORBIDDEN);
+  //   6) в ASSIGNED нельзя без ответственного (LIFECYCLE_NO_ASSIGNEE).
+  // После успеха: запись аудита ('closed' для закрытия, иначе 'status_changed'); при закрытии связанные алерты тоже закрываются.
+  S.changeStatus = (id, to) => {
+    const inc = findInc(id);
+    zoneGuard(inc.location);
+    if (!D.STATUSES.includes(to)) throw new Error('Неизвестный статус');
+    if (state.session.role === 'worker') {
+      guard(to === 'IN_PROGRESS' ? 'incident.take' : 'incident.close');
+      ownOrDeny(inc);
+      // ПРАВИЛО: просроченную задачу (срок created_at + 4 ч истёк, статус не CLOSED) рабочий взять в работу не может.
+      // Проверка только для перехода в IN_PROGRESS: задачу, которую уже взяли вовремя, закрыть можно и после срока.
+      // Такая задача висит как тревога у диспетчера — он решает, что с ней делать (переназначить и т.д.).
+      if (to === 'IN_PROGRESS' && S.isOverdue(inc)) {
+        log('INCIDENT_TAKE_DENIED', `${id}: срок истёк ${U.fmtDT(inc.deadline)} — рабочий ${S.currentUser().name} не может взять просроченную задачу`, 'WARN'); // след в системном журнале
+        emit('logs');
+        throw new ScError('INCIDENT_OVERDUE', 'срок задачи истёк — взять её в работу нельзя, обратитесь к диспетчеру');
+      }
+    } else guard('incident.status');
+    const from = inc.status;
+    if (from === to) return;
+    if (from === 'CLOSED') throw new ScError('LIFECYCLE_REOPEN_FORBIDDEN', 'закрытый инцидент нельзя открыть заново — создайте новый');
+    // Главная проверка цикла: переход допустим только если он есть в таблице ALLOWED (никаких пропусков шагов).
+    if (!ALLOWED[from].includes(to)) throw new ScError('LIFECYCLE_TRANSITION_FORBIDDEN', `${from} → ${to} запрещён (допустимо: ${ALLOWED[from].join(', ') || '—'})`);
+    if (to === 'ASSIGNED' && !inc.responsible) throw new ScError('LIFECYCLE_NO_ASSIGNEE', 'сначала назначьте ответственного');
+    inc.status = to;
+    audit('incident', id, to === 'CLOSED' ? 'closed' : 'status_changed', from, to);
+    // При закрытии инцидента закрываем и связанные с ним алерты (статус INCIDENT → CLOSED), каждый переход — запись в аудит.
+    if (to === 'CLOSED') {
+      state.alerts.filter((a) => a.incident_id === id && a.status === 'INCIDENT').forEach((a) => {
+        audit('alert', a.alert_id, 'closed', 'INCIDENT', 'CLOSED', `закрыт инцидент ${id}`);
+        a.status = 'CLOSED';
+      });
+    }
+    log('INCIDENT_STATUS', `${id}: ${from} → ${to}`);
+    emit('incidents');
+  };
+  // «↻ Новый» — повторный инцидент. Закрытый инцидент нельзя открыть заново, поэтому создаётся НОВЫЙ того же типа и участка
+  // со ссылкой related_to на старый. Работает только для CLOSED.
+  S.createFollowUp = (id) => {
+    guard('incident.create');
+    const old = findInc(id);
+    zoneGuard(old.location);
+    if (old.status !== 'CLOSED') throw new ScError('LIFECYCLE_TRANSITION_FORBIDDEN', 'повторный инцидент создаётся только по закрытому');
+    return S.createIncident({ type: old.type, location: old.location, description: `Повторный инцидент по ${id}`, related_to: id });
+  };
+  // Комментарий к инциденту (в закрытый нельзя)
+  S.addComment = (id, text) => {
+    guard('incident.comment');
+    text = String(text || '').trim();
+    if (!text) throw new Error('Комментарий пуст');
+    const inc = findInc(id);
+    zoneGuard(inc.location);
+    if (inc.status === 'CLOSED') throw new ScError('LIFECYCLE_REOPEN_FORBIDDEN', 'закрытый инцидент неизменяем');
+    if (state.session.role === 'worker') ownOrDeny(inc);
+    state.comments.push({ id: ++state.seq.comment, incident_id: id, user_id: state.session.userId, time: new Date(U.now()).toISOString(), text });
+    log('COMMENT_ADD', `${id}: ${text.slice(0, 60)}`);
+    emit('incidents');
+  };
+
+  // ---------- телеметрия: подпись, дедупликация A-5, авто-инцидент A-3, зависшие датчики A-4 ----------
+  const fmtV = (v) => (v === null || v === undefined || v === '' ? '' : String(Number(v)));
+  // КАНОНИЧЕСКАЯ СТРОКА для подписи: event_id|time|location|indicator|value (поля через «|», значение без лишних нулей: 29.0 → 29).
+  // Датчик и шлюз должны строить её абсолютно одинаково, иначе подписи не совпадут. Тот же формат в backend/sc_backend.py.
+  const canonical = (e) => [e.event_id, e.time, e.location, e.indicator, fmtV(e.value)].join('|');
+  // Подпись события = HMAC-SHA256(секретный ключ датчика, каноническая строка). В реальности это делает ПРОШИВКА датчика,
+  // а не пользователь; в прототипе подпись ставит «Стенд датчиков». ВАЖНО: ключ здесь демонстрационный (в браузере секрет
+  // хранить нельзя). В продакшне ключ берётся из переменной окружения SENSOR_HMAC_SECRET на сервере.
+  S.signEvent = (e) => U.hmacSha256Hex(SENSOR_KEY, canonical(e)); // это делает «прошивка датчика», а не пользователь
+  // Экспорт канонической строки (для тестов и стенда)
+  S.canonical = canonical;
+
+  // Классификация нового значения датчика относительно нормы [lo; hi]:
+  //   ИЗМЕНЕНО (как в indicators.csv): норма — [norm_min; norm_max), нижняя граница входит, верхняя уже нет;
+  //   вышли за границу, но не более чем на 20% ширины диапазона → WARNING; дальше → CRITICAL.
+  //   Пример (температура, норма 20–26): 20 → NORMAL, 26 → WARNING (так в файле), 27 → WARNING, 28 → CRITICAL.
+  // Для показаний ИЗ ФАЙЛА статус не пересчитывается — берётся как в indicators.csv.
+  function classify(v, lo, hi) {
+    if (v >= lo && v < hi) return 'NORMAL'; // ИЗМЕНЕНО: было v <= hi; ровно norm_max в indicators.csv помечен WARNING
+    // dev — на сколько значение вышло за границу нормы (в единицах показателя).
+    const dev = v < lo ? lo - v : v - hi;
+    return dev > 0.2 * (hi - lo) ? 'CRITICAL' : 'WARNING';
+  }
+  // Отклонение входящего события датчика: увеличивает счётчик «отклонено», пишет TELEMETRY_REJECTED в системный журнал
+  // и бросает ScError с кодом (SENSOR_SIGNATURE_INVALID, UNKNOWN_LOCATION, EVENT_REPLAY ...). Показание в базу НЕ попадает.
+  function reject(code, msg, evt) {
+    state.tstats.rejected++;
+    log('TELEMETRY_REJECTED', `${code}: ${msg} [${evt.location}/${evt.indicator}, ${evt.event_id || 'без event_id'}]`, 'WARN', 'sensor-gateway');
+    emit('logs');
+    throw new ScError(code, msg);
+  }
+  // Создаёт алерт (CRITICAL по датчику / STALE / OVERDUE по просрочке)
+  function newAlert(p) {
+    const a = { alert_id: `alr_${pad(++state.seq.alert)}`, incident_id: '', event_id: '', ...p };
+    state.alerts.push(a);
+    return a;
+  }
+  // ШЛЮЗ ТЕЛЕМЕТРИИ — вход для событий датчиков {event_id, time, location, indicator, value, signature}.
+  // Порядок проверок (при любой неудаче событие отклоняется функцией reject и не сохраняется):
+  //   1) подпись есть и верна — HMAC-SHA256, сравнение за постоянное время (SENSOR_SIGNATURE_INVALID);
+  //   2) участок есть в sites.csv (UNKNOWN_LOCATION);  3) показатель известен (UNKNOWN_INDICATOR);
+  //   4) event_id не повторялся (EVENT_REPLAY — защита от повторной отправки перехваченного события);  5) время и значение корректны.
+  // Дальше правила:
+  //   A-5: тот же датчик в пределах 5 минут от прошлого показания → запись со статусом DUPLICATE, алерт НЕ создаётся;
+  //   CRITICAL → создаётся алерт; A-3: если предыдущее показание тоже CRITICAL и прошло не более 15 минут → авто-инцидент
+  //   (source=auto, не создаётся второй, пока по этому участку и типу есть незакрытый). Возвращает {status, reading_status, alert, incident}.
+  S.ingestTelemetry = (evt) => {
+    evt = evt || {};
+    // ШАГ 1. Подпись: отсутствует — сразу отказ (SENSOR_SIGNATURE_INVALID).
+    if (typeof evt.signature !== 'string' || !evt.signature) reject('SENSOR_SIGNATURE_INVALID', 'подпись отсутствует', evt);
+    // ШАГ 2. Считаем эталонную подпись по канонической строке и сравниваем за постоянное время (не через ===, чтобы нельзя было подобрать подпись по времени ответа).
+    const expected = U.hmacSha256Hex(SENSOR_KEY, canonical(evt));
+    if (!U.safeEqual(expected, evt.signature.toLowerCase())) reject('SENSOR_SIGNATURE_INVALID', 'подпись не совпадает', evt);
+    // ШАГ 3. Подпись верна — проверяем смысл события: участок из sites.csv, известный показатель, уникальный event_id, корректные время и значение.
+    const loc = evt.location, ind = evt.indicator;
+    if (!state.locations.some((l) => l.id === loc)) reject('UNKNOWN_LOCATION', `участок ${loc} отсутствует в справочнике sites`, evt);
+    const th = state.thresholds[ind];
+    if (!th) reject('UNKNOWN_INDICATOR', String(ind), evt);
+    if (typeof evt.event_id !== 'string' || !evt.event_id) reject('INVALID_EVENT', 'нет event_id', evt);
+    if (state.seen[evt.event_id]) reject('EVENT_REPLAY', `event_id ${evt.event_id} уже обработан`, evt);
+    const t = new Date(evt.time).getTime();
+    if (isNaN(t)) reject('INVALID_EVENT', 'некорректное время', evt);
+    if (evt.value === null || evt.value === '' || typeof evt.value === 'boolean' || !isFinite(Number(evt.value))) reject('INVALID_EVENT', 'некорректное значение', evt);
+    const v = Number(evt.value);
+
+    // ШАГ 4. Событие прошло все проверки: запоминаем event_id (защита от повтора), считаем статус по норме и находим предыдущее валидное показание этого датчика.
+    state.seen[evt.event_id] = 1;
+    const key = loc + '|' + ind;
+    const iso = new Date(t).toISOString();
+    const status = classify(v, th.min, th.max);
+    const valid = state.readings.filter((r) => r.src !== 'sim' && r.location === loc && r.indicator === ind && r.status !== 'DUPLICATE' && r.status !== 'STALE' && r.value != null);
+    // prev — предыдущее настоящее показание (не DUPLICATE, не STALE, не «живая» точка симуляции): на него опираются правила A-5 и A-3.
+    const prev = valid.length ? valid[valid.length - 1] : null;
+    const prevT = prev ? new Date(prev.time).getTime() : 0;
+    state.live[key] = Math.max(state.live[key] || 0, t); // любое событие = датчик жив
+
+    // ШАГ 5.
+    // A-5: дубликат — то же location+indicator в пределах 5 минут (граница включена)
+    if (prev && Math.abs(t - prevT) <= DEDUP_MS) {
+      state.readings.push({ time: iso, location: loc, indicator: ind, value: v, norm_min: th.min, norm_max: th.max, status: 'DUPLICATE', event_id: evt.event_id });
+      state.tstats.duplicate++;
+      log('TELEMETRY_DUPLICATE', `${loc}/${ind}: повтор в пределах 5 мин — алерт не создан (A-5)`, 'INFO', 'sensor-gateway');
+      emit('telemetry');
+      return { status: 'DUPLICATE', reading_status: 'DUPLICATE', alert: null, incident: null };
+    }
+
+    state.readings.push({ time: iso, location: loc, indicator: ind, value: v, norm_min: th.min, norm_max: th.max, status, event_id: evt.event_id });
+    state.readings.sort((a, b) => a.time.localeCompare(b.time));
+    state.tstats.accepted++;
+
+    // ШАГ 6. Если по этому датчику была отмечена «зависка» (A-4), то пришедшее событие означает, что датчик ожил — закрываем тот алерт (RESOLVED).
+    if (state.staleOpen[key]) { // датчик «ожил»
+      const a = state.alerts.find((x) => x.alert_id === state.staleOpen[key]);
+      if (a) { audit('alert', a.alert_id, 'status_changed', a.status, 'RESOLVED', 'данные возобновились', { actor: 'sensor-gateway' }); a.status = 'RESOLVED'; }
+      delete state.staleOpen[key];
+    }
+
+    // ШАГ 7. Алерты и авто-инциденты создаются ТОЛЬКО для CRITICAL (NORMAL и WARNING алерта не дают).
+    let alert = null, incident = null;
+    if (status === 'CRITICAL') {
+      alert = newAlert({ location: loc, indicator: ind, level: 'CRITICAL', value: v, time: iso, status: 'OPEN', event_id: evt.event_id });
+      audit('alert', alert.alert_id, 'created', null, 'OPEN', `${ind}=${fmtV(v)}`, { actor: 'sensor-gateway' });
+      // Условие A-3: предыдущее показание тоже CRITICAL и интервал между ними не больше 15 минут (а дубликаты в 5 минут сюда не доходят — отсечены выше).
+      // A-3: 2 подряд CRITICAL в окне 15 минут → авто-инцидент
+      if (prev && prev.status === 'CRITICAL' && t - prevT >= 0 && t - prevT <= CRIT_MS) {
+        const type = D.INDICATOR_TYPE[ind] || 'other';
+        // Защита от лавины: если по этому участку и типу уже есть НЕзакрытый инцидент — новый не создаём, а привязываем алерты к нему.
+        incident = state.incidents.find((i) => i.location === loc && i.type === type && i.status !== 'CLOSED') || null;
+        if (!incident) {
+          incident = newIncident({ type, location: loc, description: `Авто (A-3): 2 подряд CRITICAL по показателю «${D.indLabel(ind)}»`, source: 'auto', alert_id: alert.alert_id });
+          audit('incident', incident.incident_id, 'created', null, 'NEW', 'source=auto (A-3)', { actor: 'system' });
+          log('INCIDENT_AUTO', `${incident.incident_id} создан по правилу A-3 (${loc}/${ind})`, 'WARN', 'system');
+        }
+        // Все открытые алерты этого датчика переходят в статус INCIDENT и получают ссылку на инцидент (в аудит пишется каждый переход).
+        state.alerts.filter((a) => a.location === loc && a.indicator === ind && a.status === 'OPEN').forEach((a) => {
+          audit('alert', a.alert_id, 'status_changed', 'OPEN', 'INCIDENT', `привязан к ${incident.incident_id}`, { actor: 'system' });
+          a.status = 'INCIDENT'; a.incident_id = incident.incident_id;
+        });
+      }
+    }
+    emit('telemetry');
+    if (incident) emit('incidents');
+    return { status: 'ACCEPTED', reading_status: status, alert, incident };
+  };
+
+  // ПРАВИЛО A-4 (зависшие датчики). Для каждого датчика, от которого в этом сеансе приходили события, смотрим, когда было последнее.
+  // Прошло СТРОГО больше 5 минут (по времени системы) и простой ещё не отмечен → добавляем показание STALE, создаём алерт
+  // (статус ESCALATED) и эскалацию руководителю — один раз на простой. Когда данные вернутся, алерт станет RESOLVED.
+  // Вызывается раз в секунду при запущенной симуляции и вручную кнопкой на стенде.
+  S.checkStale = () => {
+    const now = U.now();
+    let n = 0;
+    for (const [key, last] of Object.entries(state.live)) {
+      // Пропускаем датчик, если простой уже отмечен ИЛИ тишина не дольше 5 минут (граница включена: ровно 5:00 — ещё не зависший).
+      if (state.staleOpen[key] || now - last <= STALE_MS) continue;
+      const [loc, ind] = key.split('|');
+      const th = state.thresholds[ind];
+      const iso = new Date(now).toISOString();
+      const mins = Math.floor((now - last) / 60000);
+      state.readings.push({ time: iso, location: loc, indicator: ind, value: null, norm_min: th.min, norm_max: th.max, status: 'STALE', event_id: '' });
+      // Создаём алерт STALE со статусом ESCALATED и эскалацию на ВСЕХ активных руководителей; в аудит пишет 'system'.
+      const al = newAlert({ location: loc, indicator: ind, level: 'STALE', value: null, time: iso, status: 'ESCALATED' });
+      audit('alert', al.alert_id, 'created', null, 'ESCALATED', `нет данных ${mins} мин (A-4)`, { actor: 'system' });
+      const to = state.users.filter((u) => u.role === 'manager' && u.active).map((u) => u.id);
+      state.escalations.push({ escalation_id: `esc_${pad(++state.seq.esc)}`, alert_id: al.alert_id, location: loc, indicator: ind, to, time: iso, reason: `нет данных ${mins} мин`, ack: false });
+      state.staleOpen[key] = al.alert_id;
+      log('SENSOR_STALE', `${loc}/${ind}: нет данных ${mins} мин — эскалация руководителю (A-4)`, 'WARN', 'system');
+      n++;
+    }
+    if (n) emit('telemetry');
+    return n;
+  };
+  // Руководитель подтверждает эскалацию
+  S.ackEscalation = (id) => {
+    guard('escalations.view');
+    const e = state.escalations.find((x) => x.escalation_id === id);
+    if (!e) throw new Error('Эскалация не найдена');
+    zoneGuard(e.location);
+    if (e.ack) return;
+    e.ack = true;
+    const a = state.alerts.find((x) => x.alert_id === e.alert_id);
+    if (a && a.status === 'ESCALATED') { audit('alert', a.alert_id, 'status_changed', 'ESCALATED', 'ACKNOWLEDGED', 'эскалация принята руководителем'); a.status = 'ACKNOWLEDGED'; }
+    log('ESCALATION_ACK', `${id} подтверждена`);
+    emit('telemetry');
+  };
+
+  // ПРОСРОЧКА ИНЦИДЕНТОВ. Проходит по всем видимым (по времени) инцидентам:
+  //   срок истёк и инцидент не CLOSED → создаём алерт уровня OVERDUE (один на инцидент), запись в аудит и в системный журнал,
+  //   показываем уведомление; инцидент закрыт или время перемотали назад до срока → алерт получает статус RESOLVED.
+  // Статус жизненного цикла НЕ меняется: «просрочен» — вычисляемое состояние (см. S.isOverdue), а не пятый статус.
+  S.checkOverdue = () => {
+    const now = U.now(), iso = new Date(now).toISOString();
+    let raised = 0, solved = 0;
+    for (const inc of state.incidents) {
+      if (!seenIncident(inc)) continue;
+      const open = state.alerts.find((a) => a.level === 'OVERDUE' && a.incident_id === inc.incident_id && a.status === 'OPEN');
+      // over — инцидент сейчас просрочен (не закрыт и срок меньше текущего времени системы); open — уже есть открытый алерт просрочки по нему.
+      const over = inc.status !== 'CLOSED' && new Date(inc.deadline).getTime() < now;
+      // Просрочка наступила, а алерта ещё нет → создаём (ровно один на инцидент, чтобы не плодить дубли каждую секунду).
+      if (over && !open) {
+        const al = newAlert({ location: inc.location, indicator: '', level: 'OVERDUE', value: null, time: iso, status: 'OPEN', incident_id: inc.incident_id });
+        audit('alert', al.alert_id, 'created', null, 'OPEN', `${inc.incident_id} просрочен (дедлайн ${inc.deadline})`, { actor: 'system' });
+        log('INCIDENT_OVERDUE', `${inc.incident_id}: срок ${U.fmtDT(inc.deadline)} истёк, инцидент не закрыт`, 'WARN', 'system');
+        if (S.canSee(inc.location)) raised++;
+      // Тревога больше не актуальна (инцидент закрыт либо время перемотали назад) → снимаем алерт.
+      } else if (!over && open) {
+        audit('alert', open.alert_id, 'status_changed', 'OPEN', 'RESOLVED', inc.status === 'CLOSED' ? 'инцидент закрыт' : 'время перемотано до срока', { actor: 'system' });
+        open.status = 'RESOLVED';
+        solved++;
+      }
+    }
+    // Уведомление одно на пачку: при перемотке вперёд просрочек может быть десятки — показываем число, а не десятки окон.
+    if (raised) U.toast(raised === 1 ? '⏰ Инцидент просрочен: срок 4 часа истёк' : `⏰ Просрочено инцидентов: ${raised}`, 'error');
+    if (raised || solved) { emit('telemetry'); emit('incidents'); }
+    return raised;
+  };
+  // Открытые алерты просрочки для баннера
+  S.overdueAlerts = () => state.alerts.filter((a) => a.level === 'OVERDUE' && a.status === 'OPEN' && S.canSee(a.location) && seenIncident(findIncSafe(a.incident_id)));
+  // Поиск инцидента без исключения (для фильтра алертов)
+  const findIncSafe = (id) => state.incidents.find((x) => x.incident_id === id) || { source: 'manual' };
+
+  // ---------- симуляция: запуск/пауза, скорость, позиция (перемотка вперёд и назад) ----------
+  S.simRunning = false;
+  // Кнопка ▶/⏸ в шапке: запускает или останавливает ход ВРЕМЕНИ СИСТЕМЫ. Пока время идёт, раз в секунду срабатывают
+  // проверки просрочки и «зависших» датчиков, а у датчиков появляются новые точки графиков (liveTick).
+  S.setSimulation = (on) => { U.setRunning(on); S.simRunning = on; S.syncSim(true); };
+  // Границы шкалы времени симуляции: от первого инцидента до последней записи/дедлайна в данных
+  S.simRange = () => {
+    let a = Infinity, z = -Infinity;
+    for (const i of state.incidents) { if (i.source !== 'file') continue; a = Math.min(a, +new Date(i.time)); z = Math.max(z, +new Date(i.deadline), +new Date(i.time)); }
+    for (const r of state.readings) if (r.src === 'file') z = Math.max(z, +new Date(r.time));
+    return { start: isFinite(a) ? a : U.now(), end: isFinite(z) ? z : U.now() };
+  };
+  // ПЕРЕМОТКА: ставит время системы на момент ms, но не раньше первого инцидента и не позже конца данных (S.simRange).
+  // После перемотки сразу пересчитывается, какие инциденты/показания «уже случились», перерисовываются графики и тревоги.
+  // Перемотка назад скрывает будущие данные из файла и снимает тревоги просрочки, срок которых ещё не наступил.
+  S.seek = (ms) => {
+    const { start, end } = S.simRange();
+    U.setBase(Math.min(Math.max(ms, start), end));
+    S.syncSim(true);
+  };
+  // Перемотка на ± интервал (кнопки −1 ч, +10 мин ...)
+  S.seekBy = (deltaMs) => S.seek(U.now() + deltaMs);
+  let simSig = '';
+  // «Такт» симуляции. Порядок: 1) если время идёт — добавить живые точки графиков; 2) проверить просрочки;
+  // 3) перерисовать интерфейс, только если изменилось число видимых инцидентов/показаний/просрочек (иначе экран бы
+  // перерисовывался каждую секунду и сбрасывал открытые выпадающие списки). force=true — перерисовать в любом случае.
+  S.syncSim = (force) => {
+    if (S.simRunning) S.liveTick();
+    S.checkOverdue();
+    const sig = state.incidents.filter(seenIncident).length + '|' + state.readings.filter(seenReading).length + '|' + state.incidents.filter((i) => S.isOverdue(i) && seenIncident(i)).length;
+    if (force || sig !== simSig) { simSig = sig; emit('telemetry'); emit('incidents'); }
+  };
+
+
+  // «Живые» графики: пока симуляция идёт, каждый датчик, по которому уже были показания, выдаёт новую точку каждые 5 мин
+  // системного времени. Значение — небольшой дрейф от последнего показания, статус не меняется (норма остаётся нормой,
+  // предупреждение — предупреждением). Эти точки только для отображения (src='sim'): алертов, инцидентов и записей аудита
+  // они не создают, в реестр данных и выгрузки не попадают. Инциденты по датчикам создаёт только правило A-3 по подписанным событиям.
+  const SIM_STEP = 5 * 60000, SIM_MAX = 3000;
+  const DEC = { temperature: 2, ventilation: 2, humidity: 1 };
+  // «ЖИВЫЕ» ГРАФИКИ. В файле indicators.csv показаний мало (6–7 точек на датчик), поэтому пока симуляция идёт, каждый датчик,
+  // по которому уже были показания, получает новую точку каждые 5 минут времени системы:
+  // значение = последнее значение + небольшой случайный дрейф, СТАТУС НЕ МЕНЯЕТСЯ (норма остаётся нормой).
+  // Точки помечены src='sim' и нужны ТОЛЬКО для отображения: они не создают алертов, инцидентов и записей аудита,
+  // не попадают в реестр/экспорт и не участвуют в правилах A-3/A-5. Если у датчика нет данных (STALE) — ничего не выдумываем.
+  S.liveTick = () => {
+    const now = U.now();
+    state.simTick = state.simTick || {};
+    let added = 0;
+    for (const loc of state.locations) {
+      for (const [ind, th] of Object.entries(state.thresholds)) {
+        const key = loc.id + '|' + ind;
+        const hist = state.readings.filter((r) => r.location === loc.id && r.indicator === ind && r.status !== 'DUPLICATE' && seenReading(r));
+        const last = hist[hist.length - 1];
+        if (!last || last.value == null || last.status === 'STALE') continue; // нет данных — не выдумываем
+        const from = Math.max(state.simTick[key] || 0, new Date(last.time).getTime());
+        // t — последняя 5-минутная отметка времени, не позже «сейчас»; новые точки добавляются только после последней имеющейся (from).
+        let t = Math.floor(now / SIM_STEP) * SIM_STEP;
+        if (t <= from) continue;
+        const ticks = [];
+        // Не больше 3 точек за раз: при быстрой перемотке (минуты→часы) не создаём тысячи точек, берём только самые свежие.
+        for (; t > from && ticks.length < 3; t -= SIM_STEP) ticks.unshift(t); // при быстрой перемотке — только последние точки
+        let v = last.value;
+        const lo = last.norm_min, hi = last.norm_max, span = hi - lo, d = DEC[ind] != null ? DEC[ind] : 2;
+        for (const tt of ticks) {
+          let nv = v;
+          // Пробуем до 6 раз подобрать значение так, чтобы статус остался прежним; не получилось — повторяем прошлое значение.
+          for (let k = 0; k < 6; k++) { // подбираем шаг так, чтобы статус не менялся
+            const cand = Number((v + (Math.random() - 0.5) * span * 0.08).toFixed(d));
+            if (classify(cand, lo, hi) === last.status) { nv = cand; break; }
+          }
+          v = nv;
+          state.readings.push({ time: new Date(tt).toISOString(), location: loc.id, indicator: ind, value: v, norm_min: lo, norm_max: hi, status: last.status, src: 'sim' });
+          added++;
+        }
+        state.simTick[key] = ticks[ticks.length - 1];
+      }
+    }
+    if (added) {
+      state.readings.sort((a, b) => a.time.localeCompare(b.time));
+      const sims = state.readings.filter((r) => r.src === 'sim');
+      // Предохранитель: хранится не больше SIM_MAX «живых» точек (самые старые удаляются), чтобы localStorage не разрастался.
+      if (sims.length > SIM_MAX) { const drop = new Set(sims.slice(0, sims.length - SIM_MAX)); state.readings = state.readings.filter((r) => !drop.has(r)); }
+    }
+    return added;
+  };
+
+  // ---------- администрирование ----------
+  // Разбор строки «Зоны» из формы сотрудника: 'zone_A, zone_B' или '*'. Неизвестная зона → ошибка. Админ и руководитель всегда '*'.
+  function parseZones(txt, role) {
+    if (role === 'admin' || role === 'manager') return '*';
+    const t = String(txt || '').trim();
+    if (t === '*') return '*';
+    const list = t.split(/[,;\s]+/).filter(Boolean), known = S.zones();
+    for (const z of list) if (!known.includes(z)) throw new Error(`Неизвестная зона: ${z} (есть: ${known.join(', ')})`);
+    return [...new Set(list)];
+  }
+  // Разбор строки «Участки» из формы сотрудника (за какие участки он отвечает). Каждый участок должен существовать в справочнике
+  // и входить в зоны сотрудника — нельзя быть ответственным за участок, к которому нет доступа.
+  function parseSites(txt, zones) {
+    const t = Array.isArray(txt) ? txt.join(',') : String(txt || '').trim();
+    if (t === '*') { if (zones !== '*') throw new Error('«*» в участках допустимо только при доступе ко всем зонам'); return '*'; }
+    const list = [...new Set(t.split(/[,;\s]+/).filter(Boolean))];
+    for (const id of list) {
+      const loc = state.locations.find((l) => l.id === id);
+      if (!loc) throw new Error(`Неизвестный участок: ${id} (есть: ${state.locations.map((l) => l.id).join(', ')})`);
+      if (zones !== '*' && !zones.includes(loc.zone)) throw new Error(`Участок ${id} вне зон сотрудника`);
+    }
+    return list;
+  }
+  // Создание/редактирование сотрудника (право users.manage — только администратор). Поля: name (ФИО целиком: Фамилия Имя Отчество),
+  // login (уникален), role, zones, sites, active. Защиты: нельзя убрать/отключить последнего администратора и нельзя менять роль
+  // или отключать самого себя. Новый id выдаётся по порядку (e_106, e_107 ...).
+  S.saveUser = (u) => {
+    guard('users.manage');
+    const name = String(u.name || '').trim(), login = String(u.login || '').trim();
+    if (!name || !login) throw new Error('Укажите ФИО и логин');
+    if (!PERMS[u.role]) throw new Error('Неверная роль');
+    if (state.users.some((x) => x.login === login && x.id !== u.id)) throw new Error('Логин уже занят');
+    const zones = parseZones(u.zones, u.role);
+    const sites = parseSites(u.sites, zones);
+    const active = u.active !== false;
+    if (u.id) {
+      const cur = state.users.find((x) => x.id === u.id);
+      if (!cur) throw new Error('Пользователь не найден');
+      // Защита от самоблокировки системы: в ней всегда должен оставаться хотя бы один активный администратор.
+      const admins = state.users.filter((x) => x.role === 'admin' && x.active && x.id !== cur.id);
+      if (cur.role === 'admin' && (u.role !== 'admin' || !active) && !admins.length) throw new Error('Нельзя убрать последнего администратора');
+      if (cur.id === state.session.userId && (u.role !== cur.role || !active)) throw new Error('Нельзя менять роль или отключать самого себя');
+      Object.assign(cur, { name, login, role: u.role, active, zones, sites });
+      delete cur.position;
+      log('USER_UPDATE', `${cur.id} ${name} (${D.ROLES[cur.role]}, ${S.zonesLabel(cur)}${active ? '' : ', отключён'})`);
+    } else {
+      const n = state.users.reduce((m, x) => Math.max(m, parseInt(x.id.replace(/\D/g, ''), 10) || 0), 105) + 1;
+      const id = 'e_' + pad(n);
+      state.users.push({ id, name, login, role: u.role, active, zones, sites });
+      log('USER_CREATE', `${id} ${name} (${D.ROLES[u.role]})`);
+    }
+    emit('admin');
+  };
+  // Добавление участка в справочник (админ)
+  S.addLocation = (id, name, zone) => {
+    guard('directory.manage');
+    id = String(id || '').trim(); name = String(name || '').trim(); zone = String(zone || '').trim();
+    if (!/^site_\d{2,}$/.test(id)) throw new Error('Код участка должен иметь вид site_06');
+    if (!/^zone_[A-Za-z0-9]+$/.test(zone)) throw new Error('Укажите зону вида zone_D');
+    if (!name) throw new Error('Укажите название участка');
+    if (state.locations.some((l) => l.id === id)) throw new Error('Такой участок уже есть');
+    state.locations.push({ id, name, zone });
+    log('LOCATION_ADD', `${id} — ${name} (${zone})`);
+    emit('directory');
+  };
+  // Следующий свободный код участка (site_06 ...)
+  S.nextLocationId = () => {
+    const n = state.locations.reduce((m, l) => Math.max(m, parseInt(l.id.replace(/\D/g, ''), 10) || 0), 0) + 1;
+    return 'site_' + pad(n, 2);
+  };
+  // СБРОС рабочих данных к исходным файлам CSV (кнопка в «Реестре данных»). Инциденты, показания, алерты и часы начинаются заново.
+  // Журнал АУДИТА и список обработанных event_id сохраняются — аудит стирать нельзя даже при сбросе.
+  S.resetData = () => {
+    guard('users.manage');
+    const role = state.session.role;
+    // Сохраняем то, что стирать нельзя: журнал аудита, список обработанных event_id и счётчики телеметрии.
+    const keep = { audit: state.audit, seen: state.seen, tstats: state.tstats }; // аудит и защита от повторов переживают сброс
+    // Всё остальное (инциденты, показания, пользователи, алерты) пересобираем из исходных CSV.
+    state = D.createStateFromFiles();
+    state.audit = keep.audit; state.seen = keep.seen; state.tstats = keep.tstats;
+    state.alerts = []; state.escalations = []; state.simTick = {}; state.live = {}; state.staleOpen = {}; state.seq.alert = 0; state.seq.esc = 0;
+    state.session.role = role;
+    initClock(); S.simRunning = false;
+    log('DATA_RESET', 'Рабочие данные сброшены к файлам; журнал аудита сохранён (append-only)', 'WARN');
+    S.setRole(role);
+  };
+
+  // ---------- CSV ----------
+  const INC_COLS = ['incident_id', 'type', 'location', 'time', 'responsible', 'status', 'deadline'];
+  const AUD_COLS = ['event_id', 'entity_type', 'entity_id', 'action', 'from_status', 'to_status', 'actor', 'at', 'ip', 'details', 'prev_hash', 'hash'];
+  // Выгрузки CSV (форматы совпадают с исходными файлами)
+  S.exportIncidentsCSV = () => { guard('registry.view'); return U.toCSV(state.incidents, INC_COLS); };
+  S.exportIndicatorsCSV = () => { guard('registry.view'); return D.RAW.indicators; };
+  S.exportSitesCSV = () => { guard('registry.view'); return U.toCSV(state.locations.map((l) => ({ site_id: l.id, name: l.name, zone: l.zone })), ['site_id', 'name', 'zone']); };
+  S.exportAuditCSV = () => { guard('audit.view'); return U.toCSV(state.audit, AUD_COLS); };
+  // ИМПОРТ incidents.csv (администратор). Каждая строка проверяется: корректные поля, участок есть в sites.csv.
+  // Импорт НЕ обходит жизненный цикл: у существующего инцидента статус меняется только по разрешённым переходам (иначе строка пропускается).
+  // Статус NEW с указанным ответственным трактуется как ASSIGNED (см. D.normalizeIncident). Каждое изменение пишется в аудит.
+  S.importIncidentsCSV = (text) => {
+    guard('users.manage');
+    const rows = U.parseCSV(text);
+    let added = 0, updated = 0, skipped = 0;
+    for (const r of rows) {
+      const ok = r.incident_id && D.TYPES[r.type] && D.STATUSES.includes(r.status) && !isNaN(new Date(r.time)) && !isNaN(new Date(r.deadline));
+      if (!ok) { skipped++; continue; }
+      const i = state.incidents.findIndex((x) => x.incident_id === r.incident_id);
+      // импорт не должен обходить жизненный цикл: статус существующего инцидента меняется только по разрешённым переходам
+      // Сравниваем уже НОРМАЛИЗОВАННЫЙ статус, иначе повторный импорт исходного файла пропускал бы все строки NEW+ответственный.
+      const wantStatus = D.normalizeIncident({ status: r.status, responsible: r.responsible }).status; // статус с учётом нормализации (NEW + ответственный → ASSIGNED)
+      if (i >= 0 && wantStatus !== state.incidents[i].status && !ALLOWED[state.incidents[i].status].includes(wantStatus)) { skipped++; continue; }
+      if (!state.locations.some((l) => l.id === r.location)) { skipped++; continue; } // участок должен быть в справочнике sites
+      const rec = D.normalizeIncident({ incident_id: r.incident_id, type: r.type, location: r.location, time: new Date(r.time).toISOString(), responsible: r.responsible || '', status: r.status, deadline: new Date(r.deadline).toISOString(), description: r.description || '', source: 'import' }); // закрывающая скобка normalizeIncident
+      if (i >= 0) {
+        const from = state.incidents[i].status;
+        state.incidents[i] = { ...state.incidents[i], ...rec };
+        if (from !== r.status) audit('incident', r.incident_id, r.status === 'CLOSED' ? 'closed' : 'status_changed', from, r.status, 'импорт CSV');
+        updated++;
+      } else {
+        state.incidents.push({ related_to: '', alert_id: '', ...rec });
+        audit('incident', r.incident_id, 'created', null, r.status, 'импорт CSV');
+        added++;
+      }
+      const n = parseInt(r.incident_id.replace(/\D/g, ''), 10);
+      if (n > state.seq.incident) state.seq.incident = n;
+    }
+    log('CSV_IMPORT', `incidents.csv: добавлено ${added}, обновлено ${updated}, пропущено ${skipped}`);
+    emit('admin');
+    return { added, updated, skipped };
+  };
+})();
+
+/* ===== js/views/dispatcher.js ===== */
+(function () {
+  const SC = window.SC, U = SC.utils, D = SC.data, S = SC.store;
+  const V = (SC.views = SC.views || {});
+  const esc = U.esc;
+  const RANK = { NORMAL: 0, NODATA: 1, STALE: 1, WARNING: 2, CRITICAL: 3 };
+  // Значение + единица для плиток датчиков («21.9 °C»)
+  const fmtV = (v, unit) => (v == null ? '—' : v + (unit ? ' ' + unit : ''));
+
+  // Рисует мини-график (SVG polyline) последних показаний датчика; зелёная полоса — диапазон нормы.
+  // Масштаб по вертикали подстраивается под данные, поэтому график «дышит» при появлении новых точек.
+  function spark(s) {
+    const w = 120, h = 34, vals = s.history.map((x) => x.v).filter((v) => v != null);
+    if (vals.length < 2 || s.min == null) return `<svg class="spark" viewBox="0 0 ${w} ${h}"></svg>`;
+    const lo = Math.min(s.min, ...vals), hi = Math.max(s.max, ...vals), pad = (hi - lo) * 0.08 || 1;
+    const y = (v) => (h - ((v - (lo - pad)) / (hi - lo + 2 * pad)) * h).toFixed(1);
+    const pts = vals.map((v, i) => `${((i / Math.max(vals.length - 1, 1)) * w).toFixed(1)},${y(v)}`).join(' ');
+    return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+      <rect x="0" y="${y(s.max)}" width="${w}" height="${Math.max(y(s.min) - y(s.max), 0)}" class="band"/>
+      <polyline points="${pts}" class="line"/></svg>`;
+  }
+
+  // ЭКРАН ДИСПЕТЧЕРА (его же использует руководитель — у него дополнительно видны эскалации и аудит).
+  // mount() строит страницу, внутри — функции render*() для каждого блока; refresh(тема) перерисовывает только нужные блоки,
+  // когда store сообщил об изменениях (см. emit).
+  V.dispatcher = {
+    mount(container) {
+      const root = document.createElement('div');
+      root.className = 'view';
+      const f = { status: '', location: '', type: '', q: '' };
+      const rf = { location: '', indicator: '', status: '' };
+      let openId = null;
+
+      root.innerHTML = `
+        <section class="kpis" data-sec="kpi"></section>
+        <section data-sec="alerts"></section>
+        <section class="panel">
+          <div class="panel-h"><h2>Состояние датчиков</h2><span class="muted" data-sec="meta"></span></div>
+          <div class="sites" data-sec="sensors"></div>
+        </section>
+        <section class="panel">
+          <div class="panel-h"><h2>Реестр инцидентов</h2><button class="btn primary" data-act="new">+ Создать инцидент</button></div>
+          <div class="filters" data-sec="filters"></div>
+          <div class="table-wrap" data-sec="incidents"></div>
+        </section>
+        <section class="panel">
+          <div class="panel-h"><h2>Журнал показаний датчиков</h2></div>
+          <div class="filters" data-sec="rfilters"></div>
+          <div class="table-wrap tall" data-sec="readings"></div>
+        </section>
+        <section class="panel" data-sec="esc"></section>
+        <section class="panel" data-sec="audit"></section>
+        <dialog data-sec="dlg"></dialog>`;
+      const $ = (n) => root.querySelector(`[data-sec="${n}"]`);
+      const opt = (v, t, cur) => `<option value="${esc(v)}" ${cur === v ? 'selected' : ''}>${esc(t)}</option>`;
+
+      // Панель фильтров реестра инцидентов
+      function renderFilters() {
+        $('filters').innerHTML = `
+          <select data-f="status"><option value="">Все статусы</option>${D.STATUSES.map((s) => opt(s, D.STATUS_LABELS[s], f.status)).join('')}</select>
+          <select data-f="location"><option value="">Все участки</option>${S.visibleLocations().map((l) => opt(l.id, l.id + ' — ' + l.name, f.location)).join('')}</select>
+          <select data-f="type"><option value="">Все типы</option>${Object.entries(D.TYPES).map(([k, t]) => opt(k, t, f.type)).join('')}</select>
+          <input data-f="q" type="search" placeholder="Поиск: ID, описание…" value="${esc(f.q)}">
+          <button class="btn ghost" data-act="clear">Сбросить</button>`;
+        $('rfilters').innerHTML = `
+          <select data-rf="location"><option value="">Все участки</option>${S.visibleLocations().map((l) => opt(l.id, l.id + ' — ' + l.name, rf.location)).join('')}</select>
+          <select data-rf="indicator"><option value="">Все показатели</option>${Object.entries(S.thresholds()).map(([k, t]) => opt(k, t.label, rf.indicator)).join('')}</select>
+          <select data-rf="status"><option value="">Все статусы</option>${D.SENSOR_STATUSES.map((s) => opt(s, D.SENSOR_LABELS[s], rf.status)).join('')}</select>`;
+      }
+
+      // Карточки-счётчики вверху экрана
+      function renderKpi() {
+        const inc = S.listIncidents();
+        const open = inc.filter((i) => i.status !== 'CLOSED');
+        const sn = S.sensors();
+        const cnt = (st) => sn.filter((s) => s.status === st).length;
+        const nodata = sn.filter((s) => s.status === 'STALE' || s.status === 'NODATA').length;
+        const k = (n, l, c) => `<div class="kpi ${c || ''}"><b>${n}</b><span>${l}</span></div>`;
+        $('kpi').innerHTML =
+          k(cnt('CRITICAL'), 'Датчиков в критичном состоянии', cnt('CRITICAL') ? 'bad' : 'ok') +
+          k(cnt('WARNING'), 'Датчиков с предупреждением', cnt('WARNING') ? 'warn' : 'ok') +
+          k(nodata, 'Датчиков без данных', nodata ? 'stale' : 'ok') +
+          k(S.alertList().filter((a) => !['CLOSED', 'RESOLVED', 'ACKNOWLEDGED'].includes(a.status)).length, 'Активных алертов', 'warn') +
+          k(open.length, 'Открытых инцидентов') +
+          k(inc.filter((i) => i.status === 'NEW').length, 'Новых инцидентов', 'warn') +
+          k(open.filter(S.isOverdue).length, 'Просрочено по deadline', open.some(S.isOverdue) ? 'bad' : 'ok');
+      }
+
+      // Блок тревог вверху экрана: красный — показатели датчиков вне нормы (CRITICAL); жёлтый — нет данных от датчиков;
+      // красный второй баннер — ПРОСРОЧЕННЫЕ инциденты (до 8 штук, остальные — счётчиком «и ещё N»).
+      function renderAlerts() {
+        const sn = S.sensors();
+        const crit = sn.filter((s) => s.status === 'CRITICAL');
+        const stale = sn.filter((s) => s.status === 'STALE' || s.status === 'NODATA');
+        let html = '';
+        if (crit.length) {
+          html += `<div class="alert-banner"><div class="alert-title"><span class="pulse"></span>КРИТИЧНО: показатели вне нормы (${crit.length})</div>
+            <ul>${crit.map((s) => `<li><b>${esc(s.location)}</b> · ${esc(s.label)}: <b>${fmtV(s.value, s.unit)}</b> <span class="muted">(норма ${s.min}–${s.max}${s.value != null ? ', ' + (s.value > s.max ? 'выше' : 'ниже') : ''})</span></li>`).join('')}</ul></div>`;
+        }
+        if (stale.length) {
+          html += `<div class="alert-warn" style="margin-top:10px">⚠ Нет данных от датчиков (${stale.length})
+            <ul>${stale.map((s) => `<li><b>${esc(s.location)}</b> · ${esc(s.label)} <span class="muted">${s.lastValid ? '(последнее значение ' + fmtV(s.lastValid.value, s.unit) + ' в ' + U.fmtDT(s.lastValid.time) + ')' : '(показаний не было)'}</span></li>`).join('')}</ul></div>`;
+        }
+        const od = S.overdueAlerts();
+        if (od.length) {
+          html += `<div class="alert-banner" style="margin-top:10px"><div class="alert-title"><span class="pulse"></span>ПРОСРОЧЕНЫ инциденты: срок 4 часа истёк (${od.length})</div>
+            <ul>${od.slice(0, 8).map((a) => { const i = S.listIncidents().find((x) => x.incident_id === a.incident_id); return i ? `<li><b>${esc(i.incident_id)}</b> · ${esc(D.TYPES[i.type] || i.type)} · ${esc(i.location)} <span class="muted">(срок был ${U.fmtDT(i.deadline)}${i.responsible ? ', ответственный: ' + esc(S.userName(i.responsible)) : ', ответственный не назначен'})</span></li>` : ''; }).join('')}${od.length > 8 ? `<li class="muted">…и ещё ${od.length - 8} (полный список — в реестре инцидентов ниже, метка «Просрочен»)</li>` : ''}</ul></div>`;
+        }
+        if (!html) html = `<div class="alert-ok">✔ Все показатели в пределах нормы</div>`;
+        $('alerts').innerHTML = html;
+      }
+
+      // Плитки датчиков по участкам с мини-графиками
+      function renderSensors() {
+        const all = S.sensors();
+        $('sensors').innerHTML = S.visibleLocations().map((l) => {
+          const list = all.filter((s) => s.location === l.id);
+          const worst = list.reduce((m, s) => (RANK[s.status] > RANK[m] ? s.status : m), 'NORMAL');
+          return `<article class="site ${D.cls(worst)}">
+            <header><b>${esc(l.id)}</b><span class="muted">${esc(l.name)}${l.zone ? ' · ' + esc(D.zoneLabel(l.zone)) : ''}</span><span class="badge st-${D.cls(worst)}">${D.SENSOR_LABELS[worst]}</span></header>
+            <div class="tiles">${list.map((s) => `
+              <div class="tile ${D.cls(s.status)}">
+                <div class="tile-l">${esc(s.label)} · <span class="badge st-${D.cls(s.status)}">${D.SENSOR_LABELS[s.status]}</span></div>
+                <div class="tile-v">${s.value == null ? '—' : s.value}${s.value == null || !s.unit ? '' : `<small> ${esc(s.unit)}</small>`}</div>
+                ${spark(s)}
+                <div class="tile-n">норма ${s.min ?? '—'}–${s.max ?? '—'}${s.time ? ' · ' + U.fmtDT(s.time) : ''}</div>
+              </div>`).join('')}</div></article>`;
+        }).join('');
+        const last = all.reduce((m, s) => (s.time && s.time > m ? s.time : m), '');
+        $('meta').textContent = last ? 'последнее показание: ' + U.fmtDT(last) : 'нет показаний';
+      }
+
+      // Таблица инцидентов. Для каждой строки: ответственный (выпадающий список рабочих ЭТОЙ зоны + подпись «Участки»), статус
+      // (в списке доступны только допустимые следующие шаги — остальные заблокированы), срок и метка «Просрочен» (если не закрыт и срок истёк).
+      // Сортировка: незакрытые выше, внутри — по ближайшему сроку. Дедлайн вручную изменить нельзя — он считается автоматически.
+      function renderIncidents() {
+        const workers = S.users().filter((u) => u.role === 'worker');
+        const q = f.q.toLowerCase();
+        const rows = S.listIncidents()
+          .filter((i) => (!f.status || i.status === f.status) && (!f.location || i.location === f.location) && (!f.type || i.type === f.type) &&
+            (!q || (i.incident_id + ' ' + i.description).toLowerCase().includes(q)))
+          .sort((a, b) => (a.status === 'CLOSED') - (b.status === 'CLOSED') || new Date(a.deadline) - new Date(b.deadline));
+        if (!rows.length) { $('incidents').innerHTML = '<div class="empty">Нет инцидентов по заданным фильтрам</div>'; return; }
+        $('incidents').innerHTML = `<table class="tbl"><thead><tr>
+          <th>ID</th><th>Тип</th><th>Участок</th><th>Создан</th><th>Ответственный</th><th>Статус</th><th>Deadline</th><th></th></tr></thead><tbody>
+          ${rows.map((i) => {
+            const idx = D.STATUSES.indexOf(i.status);
+            const closed = i.status === 'CLOSED';
+            const overdue = S.isOverdue(i);
+            const resp = workers.filter((w) => (w.active && S.userHasZone(w, i.location)) || w.id === i.responsible);
+            return `<tr class="${overdue ? 'row-overdue' : ''} ${closed ? 'row-closed' : ''}">
+              <td><b>${esc(i.incident_id)}</b>${i.source === 'auto' ? ' <span class="chip warn" title="Создан автоматически (A-3)">авто</span>' : ''}${i.related_to ? `<div class="small muted">повтор по ${esc(i.related_to)}</div>` : ''}</td>
+              <td><span class="chip t-${i.type}">${esc(D.TYPES[i.type] || i.type)}</span></td>
+              <td title="${esc(S.locName(i.location))}">${esc(i.location)}<div class="small muted">${esc(D.zoneLabel(S.zoneOf(i.location)))}</div></td>
+              <td class="nowrap">${U.fmtDT(i.time)}</td>
+              <td><select data-act="assign" data-id="${i.incident_id}" ${closed || i.status === 'IN_PROGRESS' ? 'disabled' : ''}>
+                <option value="" ${i.status === 'NEW' ? '' : 'disabled'}>— не назначен —</option>
+                ${resp.map((w) => `<option value="${w.id}" ${w.id === i.responsible ? 'selected' : ''}>${esc(w.name)} · ${esc(S.sitesLabel(w))}</option>`).join('')}</select>
+                ${i.responsible ? `<div class="small muted">Участки: ${esc(S.sitesLabel(S.users().find((u) => u.id === i.responsible)))}</div>` : ''}</td>
+              <td><select class="st st-${i.status.toLowerCase()}" data-act="status" data-id="${i.incident_id}" ${closed ? 'disabled' : ''}>
+                ${D.STATUSES.map((s, n) => `<option value="${s}" ${s === i.status ? 'selected' : ''} ${n !== idx && n !== idx + 1 ? 'disabled' : ''}>${D.STATUS_LABELS[s]}</option>`).join('')}</select></td>
+              <td class="nowrap">${U.fmtDT(i.deadline)}${overdue ? ' <span class="badge st-critical" title="Срок 4 часа истёк, инцидент не закрыт">Просрочен</span>' : ''}
+                <div class="small ${overdue ? 'bad-t' : 'muted'}">${closed ? 'закрыт' : U.relative(i.deadline)}</div></td>
+              <td><button class="btn ghost sm" data-act="open" data-id="${i.incident_id}" title="Описание и комментарии">💬 ${S.comments(i.incident_id).length}</button>${closed && S.can('incident.create') ? ` <button class="btn ghost sm" data-act="followup" data-id="${i.incident_id}" title="Закрытый инцидент не открывается заново — создаётся новый">↻ Новый</button>` : ''}</td>
+            </tr>`;
+          }).join('')}</tbody></table>`;
+      }
+
+      // Таблица показаний датчиков с фильтрами
+      function renderReadings() {
+        const rows = S.readings()
+          .filter((r) => (!rf.location || r.location === rf.location) && (!rf.indicator || r.indicator === rf.indicator) && (!rf.status || r.status === rf.status))
+          .sort((a, b) => b.time.localeCompare(a.time));
+        if (!rows.length) { $('readings').innerHTML = '<div class="empty">Нет показаний по заданным фильтрам</div>'; return; }
+        $('readings').innerHTML = `<table class="tbl"><thead><tr><th>Время</th><th>Участок</th><th>Показатель</th><th>Значение</th><th>Норма</th><th>Статус</th></tr></thead><tbody>
+          ${rows.map((r) => {
+            const th = S.thresholds()[r.indicator] || { unit: '' };
+            return `<tr class="${r.status === 'CRITICAL' ? 'row-overdue' : r.status === 'WARNING' ? 'row-warn' : (r.status === 'STALE' || r.status === 'DUPLICATE') ? 'row-closed' : ''}">
+              <td class="nowrap">${U.fmtDT(r.time)}</td><td>${esc(r.location)}</td><td>${esc(D.indLabel(r.indicator))}</td>
+              <td><b>${fmtV(r.value, th.unit)}</b></td><td class="muted">${r.norm_min}–${r.norm_max}</td>
+              <td><span class="badge st-${D.cls(r.status)}">${D.SENSOR_LABELS[r.status] || esc(r.status)}</span></td></tr>`;
+          }).join('')}</tbody></table>`;
+      }
+
+      // Блок эскалаций A-4 (виден руководителю)
+      function renderEsc() {
+        const el = $('esc');
+        if (!S.can('escalations.view')) { el.style.display = 'none'; return; }
+        const list = S.escalations();
+        el.innerHTML = `<div class="panel-h"><h2>Эскалации руководителю (A-4)</h2><span class="muted">${list.filter((x) => !x.ack).length} без подтверждения</span></div>` +
+          (list.length ? `<div class="table-wrap"><table class="tbl"><thead><tr><th>ID</th><th>Время</th><th>Участок</th><th>Показатель</th><th>Причина</th><th>Адресат</th><th></th></tr></thead><tbody>${list.map((x) => `<tr class="${x.ack ? 'row-closed' : 'row-warn'}"><td><b>${esc(x.escalation_id)}</b></td><td class="nowrap">${U.fmtDT(x.time)}</td><td>${esc(x.location)}</td><td>${esc(D.indLabel(x.indicator))}</td><td>${esc(x.reason)}</td><td>${esc(x.to.map((id) => S.userName(id)).join(', '))}</td><td>${x.ack ? '✔ принята' : `<button class="btn sm" data-act="ack" data-id="${x.escalation_id}">Подтвердить</button>`}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Эскалаций нет</div>');
+      }
+
+      // Последние 30 записей аудита (виден руководителю)
+      function renderAudit() {
+        const el = $('audit');
+        if (!S.can('audit.view')) { el.style.display = 'none'; return; }
+        const rows = S.auditLog().slice(-30).reverse();
+        el.innerHTML = `<div class="panel-h"><h2>Журнал аудита <span class="muted small">(последние 30, append-only)</span></h2></div><div class="table-wrap tall"><table class="tbl"><thead><tr><th>ID</th><th>Объект</th><th>Действие</th><th>Статус</th><th>Кто</th><th>Когда</th><th>IP</th></tr></thead><tbody>${rows.map((a) => `<tr><td>${esc(a.event_id)}</td><td>${esc(a.entity_type)} <b>${esc(a.entity_id)}</b></td><td><span class="chip">${esc(a.action)}</span></td><td class="nowrap">${esc(a.from_status || '—')} → ${esc(a.to_status || '—')}</td><td>${esc(a.actor)}</td><td class="nowrap">${U.fmtDT(a.at)}</td><td>${esc(a.ip)}</td></tr>`).join('')}</tbody></table></div>`;
+      }
+
+      // Окно инцидента: описание и комментарии
+      function renderDetails() {
+        const dlg = $('dlg');
+        if (!openId) return;
+        const i = S.listIncidents().find((x) => x.incident_id === openId);
+        if (!i) return;
+        dlg.innerHTML = `<form method="dialog" class="dlg-body">
+          <h3>${esc(i.incident_id)} · ${esc(D.TYPES[i.type] || i.type)} · ${esc(i.location)}</h3>
+          <p>${esc(i.description || 'Описание не указано')}</p>
+          <p class="muted small">${esc(S.locName(i.location))} · Создан ${U.fmtDT(i.time)} · Ответственный: ${esc(S.userName(i.responsible))}${i.responsible ? ' (участки: ' + esc(S.sitesLabel(S.users().find((u) => u.id === i.responsible))) + ')' : ''} · Срок: ${U.fmtDT(i.deadline)} · Статус: ${D.STATUS_LABELS[i.status]}</p>
+          <div class="comments">${S.comments(i.incident_id).map((c) => `<div class="cmt"><b>${esc(S.userName(c.user_id))}</b> <span class="muted small">${U.fmtDT(c.time)}</span><div>${esc(c.text)}</div></div>`).join('') || '<div class="muted">Комментариев пока нет</div>'}</div>
+          <textarea data-role="cmt" rows="2" placeholder="Комментарий диспетчера…"></textarea>
+          <div class="dlg-actions"><button class="btn primary" type="button" data-act="cmt" data-id="${i.incident_id}">Добавить</button><button class="btn ghost" value="close">Закрыть</button></div></form>`;
+      }
+
+      // Окно «Новый инцидент»: тип, участок (только из доступных зон), ответственный (необязательно), описание.
+      // Полей времени и срока нет НАМЕРЕННО: время создания и дедлайн (+4 часа) ставит система по своим часам.
+      function openCreate() {
+        const dlg = $('dlg');
+        openId = null;
+        dlg.innerHTML = `<form method="dialog" class="dlg-body">
+          <h3>Новый инцидент</h3>
+          <label>Тип<select data-role="c-type">${Object.entries(D.TYPES).map(([k, t]) => `<option value="${k}">${t}</option>`).join('')}</select></label>
+          <label>Участок<select data-role="c-loc">${S.visibleLocations().map((l) => `<option value="${l.id}">${l.id} — ${esc(l.name)}</option>`).join('')}</select></label>
+          <label>Ответственный<select data-role="c-resp"><option value="">— назначить позже —</option>${S.users().filter((u) => u.role === 'worker' && u.active).map((w) => `<option value="${w.id}">${esc(w.name)} · ${esc(S.sitesLabel(w))}</option>`).join('')}</select></label>
+          <p class="muted small">Время создания и срок устранения задаются автоматически: срок = время создания + 4 часа (по времени системы).</p>
+          <label>Описание<textarea data-role="c-desc" rows="2"></textarea></label>
+          <div class="dlg-actions"><button class="btn primary" type="button" data-act="create">Создать</button><button class="btn ghost" value="close">Отмена</button></div></form>`;
+        dlg.showModal();
+      }
+
+      const safe = (fn) => (e) => {
+        try { fn(e); } catch (err) { U.toast(err.message, 'error'); renderIncidents(); renderKpi(); }
+      };
+
+      root.addEventListener('click', safe((e) => {
+        const b = e.target.closest('[data-act]');
+        if (!b) return;
+        const act = b.dataset.act, id = b.dataset.id;
+        if (act === 'new') openCreate();
+        else if (act === 'clear') { Object.assign(f, { status: '', location: '', type: '', q: '' }); renderFilters(); renderIncidents(); }
+        else if (act === 'open') { openId = id; renderDetails(); $('dlg').showModal(); }
+        else if (act === 'ack') { S.ackEscalation(id); U.toast('Эскалация подтверждена', 'ok'); }
+        else if (act === 'followup') { const n = S.createFollowUp(id); U.toast(`Создан ${n.incident_id} (повтор по ${id})`, 'ok'); }
+        else if (act === 'cmt') {
+          const t = $('dlg').querySelector('[data-role="cmt"]');
+          S.addComment(id, t.value);
+          U.toast('Комментарий добавлен', 'ok');
+        } else if (act === 'create') {
+          const g = (n) => $('dlg').querySelector(`[data-role="${n}"]`).value;
+          const inc = S.createIncident({ type: g('c-type'), location: g('c-loc'), responsible: g('c-resp'), description: g('c-desc') });
+          $('dlg').close();
+          U.toast(`Создан ${inc.incident_id}`, 'ok');
+        }
+      }));
+      root.addEventListener('change', safe((e) => {
+        const t = e.target;
+        if (t.dataset.f) { f[t.dataset.f] = t.value; renderIncidents(); return; }
+        if (t.dataset.rf) { rf[t.dataset.rf] = t.value; renderReadings(); return; }
+        if (t.dataset.act === 'assign') { S.assign(t.dataset.id, t.value); U.toast('Ответственный обновлён', 'ok'); }
+        else if (t.dataset.act === 'status') { S.changeStatus(t.dataset.id, t.value); U.toast('Статус изменён', 'ok'); }
+      }));
+      root.addEventListener('input', (e) => { if (e.target.dataset.f === 'q') { f.q = e.target.value; renderIncidents(); } });
+      $('dlg').addEventListener('close', () => { openId = null; });
+
+      renderFilters(); renderKpi(); renderAlerts(); renderSensors(); renderIncidents(); renderReadings(); renderEsc(); renderAudit();
+      container.appendChild(root);
+
+      return {
+        refresh(topic) {
+          if (topic === 'incidents') { renderIncidents(); renderKpi(); renderDetails(); renderAudit(); }
+          else if (topic === 'telemetry') { renderSensors(); renderAlerts(); renderReadings(); renderKpi(); renderEsc(); renderAudit(); renderIncidents(); }
+          else if (topic === 'directory' || topic === 'admin') { renderFilters(); renderSensors(); renderAlerts(); renderIncidents(); renderReadings(); renderKpi(); renderEsc(); renderAudit(); }
+        },
+      };
+    },
+  };
+})();
+
+/* ===== js/views/manager.js ===== */
+(function () { SC.views.manager = SC.views.dispatcher; })(); // руководитель = экран диспетчера + эскалации и аудит
+
+/* ===== js/views/worker.js ===== */
+(function () {
+  const SC = window.SC, U = SC.utils, D = SC.data, S = SC.store;
+  const V = (SC.views = SC.views || {});
+  const esc = U.esc;
+
+  // ЭКРАН РАБОЧЕГО. Видны только задачи, назначенные ему. Действия: «Принять в работу» (только ASSIGNED и только пока срок не истёк),
+  // комментарий, «Выполнено» (из «В работе»). Просроченная задача берётся только через диспетчера — вместо кнопки показывается пояснение.
+  V.worker = {
+    mount(container) {
+      const root = document.createElement('div');
+      root.className = 'view worker';
+      const me = S.currentUser();
+      let tab = 'active';
+      const drafts = {};
+
+      root.innerHTML = `
+        <section class="panel hello"><div><h2>Здравствуйте, ${esc(me.name)}</h2><div class="muted">${esc(me.name)} · ID ${esc(me.id)} · Отвечает за участки: <b>${esc(S.sitesLabel(me))}</b></div></div>
+          <div class="tabs" data-sec="tabs"></div></section>
+        <section class="cards" data-sec="cards"></section>`;
+      const $ = (n) => root.querySelector(`[data-sec="${n}"]`);
+
+      // Отрисовка карточек задач рабочего + баннер просроченных задач
+      function render() {
+        const mine = S.listIncidents();
+        const act = mine.filter((i) => i.status !== 'CLOSED');
+        const done = mine.filter((i) => i.status === 'CLOSED');
+        $('tabs').innerHTML = `<button class="tab ${tab === 'active' ? 'on' : ''}" data-tab="active">Активные (${act.length})</button><button class="tab ${tab === 'done' ? 'on' : ''}" data-tab="done">Выполненные (${done.length})</button>`;
+        const list = (tab === 'active' ? act : done).sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+        if (!list.length) { $('cards').innerHTML = `<div class="empty big">${tab === 'active' ? '🎉 Активных задач нет' : 'Выполненных задач пока нет'}</div>`; return; }
+        const late = act.filter(S.isOverdue);
+        const banner = late.length ? `<div class="alert-banner" style="grid-column:1/-1"><div class="alert-title"><span class="pulse"></span>Просрочено задач: ${late.length}</div><ul>${late.map((i) => `<li><b>${esc(i.incident_id)}</b> · ${esc(i.location)} <span class="muted">(срок был ${U.fmtDT(i.deadline)})</span></li>`).join('')}</ul></div>` : '';
+        $('cards').innerHTML = banner + list.map((i) => {
+          const overdue = S.isOverdue(i);
+          const cm = S.comments(i.incident_id);
+          const canTake = i.status === 'ASSIGNED' && !overdue; // NEW → IN_PROGRESS напрямую запрещён; просроченную задачу взять нельзя (см. S.changeStatus)
+          return `<article class="card ${overdue ? 'overdue' : ''}" data-id="${i.incident_id}">
+            <header><b>${esc(i.incident_id)}</b><span class="chip t-${i.type}">${esc(D.TYPES[i.type] || i.type)}</span><span class="badge st-${i.status.toLowerCase()}">${D.STATUS_LABELS[i.status]}</span></header>
+            <div class="card-loc">📍 ${esc(i.location)} · ${esc(S.locName(i.location))}</div>
+            <p>${esc(i.description || D.TYPES[i.type] || i.type)}</p>
+            <div class="small muted">Создан: ${U.fmtDT(i.time)}</div>
+            <div class="small ${overdue ? 'bad-t' : 'muted'}">Срок: ${U.fmtDT(i.deadline)} · ${i.status === 'CLOSED' ? 'выполнено' : U.relative(i.deadline)}</div>
+            <div class="comments">${cm.map((c) => `<div class="cmt"><b>${esc(S.userName(c.user_id))}</b> <span class="muted small">${U.fmtDT(c.time)}</span><div>${esc(c.text)}</div></div>`).join('')}</div>
+            ${i.status !== 'CLOSED' ? `<textarea rows="2" data-draft="${i.incident_id}" placeholder="Комментарий к работе, например: «Проверен участок ${esc(i.location)}»">${esc(drafts[i.incident_id] || '')}</textarea>
+            <div class="card-actions">
+              <button class="btn" data-act="cmt" data-id="${i.incident_id}">Добавить комментарий</button>
+              ${canTake ? `<button class="btn primary" data-act="take" data-id="${i.incident_id}">▶ Принять в работу</button>` : ''}
+              ${i.status === 'ASSIGNED' && overdue ? '<div class="small bad-t">⛔ Срок истёк — взять задачу в работу нельзя, сообщите диспетчеру</div>' : ''}
+              ${i.status === 'IN_PROGRESS' ? `<button class="btn success" data-act="close" data-id="${i.incident_id}">✔ Выполнено</button>` : ''}
+            </div>` : ''}
+          </article>`;
+        }).join('');
+      }
+
+      const safe = (fn) => (e) => { try { fn(e); } catch (err) { U.toast(err.message, 'error'); render(); } };
+      root.addEventListener('input', (e) => { if (e.target.dataset.draft) drafts[e.target.dataset.draft] = e.target.value; });
+      root.addEventListener('click', safe((e) => {
+        const t = e.target.closest('[data-tab]');
+        if (t) { tab = t.dataset.tab; render(); return; }
+        const b = e.target.closest('[data-act]');
+        if (!b) return;
+        const id = b.dataset.id;
+        if (b.dataset.act === 'take') { S.changeStatus(id, 'IN_PROGRESS'); U.toast('Задача принята в работу', 'ok'); }
+        else if (b.dataset.act === 'close') {
+          if (drafts[id] && drafts[id].trim()) { S.addComment(id, drafts[id]); delete drafts[id]; }
+          S.changeStatus(id, 'CLOSED');
+          U.toast('Задача отмечена выполненной', 'ok');
+        } else if (b.dataset.act === 'cmt') { S.addComment(id, drafts[id]); delete drafts[id]; U.toast('Комментарий сохранён', 'ok'); }
+      }));
+
+      render();
+      container.appendChild(root);
+      return { refresh(topic) { if (topic === 'incidents' || topic === 'telemetry' || topic === 'admin') render(); } };
+    },
+  };
+})();
+
+/* ===== js/views/admin.js ===== */
+(function () {
+  const SC = window.SC, U = SC.utils, D = SC.data, S = SC.store;
+  const V = (SC.views = SC.views || {});
+  const esc = U.esc;
+
+  // ЭКРАН АДМИНИСТРАТОРА: вкладки «Пользователи», «Справочники» (участки, нормы), «Системные логи» (+ проверка RBAC),
+  // «Аудит» (проверка цепочки хэшей, экспорт, попытка подделки), «Реестр данных» (содержимое CSV, экспорт, импорт, сброс).
+  V.admin = {
+    mount(container) {
+      const root = document.createElement('div');
+      root.className = 'view admin';
+      let tab = 'users', regTab = 'incidents';
+      const TABS = [['users', '👥 Пользователи'], ['dirs', '🗂 Справочники'], ['logs', '📜 Системные логи'], ['audit', '🧾 Аудит'], ['registry', '🗃 Реестр данных']];
+      root.innerHTML = `<div class="tabs big" data-sec="tabs"></div><section class="panel" data-sec="body"></section><dialog data-sec="dlg"></dialog>`;
+      const $ = (n) => root.querySelector(`[data-sec="${n}"]`);
+
+      const tabs = () => ($('tabs').innerHTML = TABS.map(([k, t]) => `<button class="tab ${tab === k ? 'on' : ''}" data-tab="${k}">${t}</button>`).join(''));
+
+      // Вкладка «Пользователи»
+      function users() {
+        return `<div class="panel-h"><h2>Учётные записи</h2><button class="btn primary" data-act="user-new">+ Добавить сотрудника</button></div>
+        <div class="table-wrap"><table class="tbl"><thead><tr><th>ID</th><th>ФИО</th><th>Логин</th><th>Роль</th><th>Зоны</th><th>Участки</th><th>Статус</th><th></th></tr></thead><tbody>
+        ${S.users().map((u) => `<tr class="${u.active ? '' : 'row-closed'}"><td><b>${u.id}</b></td><td class="nowrap">${esc(u.name)}</td><td>${esc(u.login)}</td>
+          <td><span class="chip role-${u.role}">${D.ROLES[u.role]}</span></td><td>${esc(S.zonesLabel(u))}</td><td>${esc(S.sitesLabel(u))}</td><td>${u.active ? 'активен' : 'отключён'}</td>
+          <td><button class="btn ghost sm" data-act="user-edit" data-id="${u.id}">Изменить</button></td></tr>`).join('')}</tbody></table></div>
+        <p class="muted small">Идентификаторы рабочих e_101…e_105 взяты из incidents.csv. ФИО (с отчествами) в файлах отсутствуют — это условные данные, их можно отредактировать. Участки рабочих определены по incidents.csv (responsible → location).</p>`;
+      }
+
+      // Вкладка «Справочники»: участки и нормы датчиков
+      function dirs() {
+        const th = S.thresholds();
+        return `<div class="grid2">
+          <div><div class="panel-h"><h2>Участки (sites.csv)</h2></div>
+            <table class="tbl"><thead><tr><th>Код</th><th>Название</th><th>Зона</th></tr></thead><tbody>${S.locations().map((l) => `<tr><td><b>${esc(l.id)}</b></td><td>${esc(l.name)}</td><td>${esc(l.zone || '—')}</td></tr>`).join('')}</tbody></table>
+            <div class="inline-form"><input data-role="loc-id" value="${S.nextLocationId()}" size="8"><input data-role="loc-name" placeholder="Название участка"><input data-role="loc-zone" placeholder="zone_D" size="8"><button class="btn primary" data-act="loc-add">Добавить участок</button></div>
+            <p class="muted small">У нового участка до появления показаний датчики отображаются как «нет данных».</p></div>
+          <div><div class="panel-h"><h2>Нормы датчиков (из indicators.csv)</h2></div>
+            <table class="tbl"><thead><tr><th>Показатель</th><th>norm_min</th><th>norm_max</th><th>Ед.</th></tr></thead><tbody>
+            ${Object.entries(th).map(([k, t]) => `<tr><td><b>${esc(t.label)}</b> <span class="muted small">${k}</span></td><td>${t.min ?? '—'}</td><td>${t.max ?? '—'}</td><td>${esc(t.unit || '—')}</td></tr>`).join('')}</tbody></table>
+            <p class="muted small">Нормы и статусы показаний берутся из файла indicators.csv и в сервисе не редактируются.</p></div></div>`;
+      }
+
+      // Вкладка «Системные логи» (+ проверка RBAC)
+      function logs() {
+        const rows = S.logs();
+        return `<div class="panel-h"><h2>Системный журнал <span class="muted small">(последние ${rows.length})</span></h2>
+          <button class="btn ghost" data-act="rbac-test" title="Попытаться выполнить действия диспетчера под ролью администратора">🛡 Проверить RBAC</button></div>
+          <div class="table-wrap tall"><table class="tbl"><thead><tr><th>Время</th><th>Пользователь</th><th>Роль</th><th>Действие</th><th>Детали</th></tr></thead><tbody>
+          ${rows.map((l) => `<tr class="${l.level === 'WARN' ? 'row-warn' : ''}"><td class="nowrap">${U.fmtDT(l.time)}</td><td>${esc(l.user)}</td><td>${esc(D.ROLES[l.role] || l.role)}</td><td><span class="chip ${l.level === 'WARN' ? 'warn' : ''}">${esc(l.action)}</span></td><td>${esc(l.details)}</td></tr>`).join('')}</tbody></table></div>`;
+      }
+
+      // Вкладка «Аудит»: проверка цепочки, экспорт, попытка подделки
+      function audit() {
+        const all = S.auditLog(), v = S.verifyAudit(), rows = all.slice(-300).reverse();
+        return `<div class="panel-h"><h2>Журнал аудита <span class="muted small">(append-only · ${all.length} записей, показаны последние ${rows.length})</span></h2><div class="btns">
+          <button class="btn ghost" data-act="aud-verify">🔗 Проверить цепочку хэшей</button><button class="btn ghost" data-act="aud-tamper">🛡 Попытка изменить/удалить</button><button class="btn ghost" data-act="aud-exp">⬇ audit.csv</button></div></div>
+          <div class="${v.ok ? 'alert-ok' : 'alert-banner'}" style="margin-bottom:12px">${v.ok ? '✔ Цепочка хэшей целостна' : '✖ Нарушена цепочка на записи №' + (v.at + 1)}</div>
+          <div class="table-wrap tall"><table class="tbl"><thead><tr><th>event_id</th><th>Объект</th><th>Действие</th><th>from → to</th><th>actor</th><th>at</th><th>ip</th><th>Детали</th></tr></thead><tbody>
+          ${rows.map((x) => `<tr><td>${esc(x.event_id)}</td><td>${esc(x.entity_type)} <b>${esc(x.entity_id)}</b></td><td><span class="chip">${esc(x.action)}</span></td><td class="nowrap">${esc(x.from_status || '—')} → ${esc(x.to_status || '—')}</td><td>${esc(x.actor)}</td><td class="nowrap">${U.fmtDT(x.at)}</td><td>${esc(x.ip)}</td><td class="muted">${esc(x.details)}</td></tr>`).join('')}</tbody></table></div>
+          <p class="muted small">IP в прототипе условные (в браузере реальный адрес недоступен). На сервере (backend/sc_backend.py) записывается адрес клиента.</p>`;
+      }
+
+      // Вкладка «Реестр данных»: содержимое CSV, экспорт, импорт, сброс
+      function registry() {
+        const reg = S.registry();
+        const head = `<div class="panel-h"><h2>Общий реестр данных</h2><div class="btns">
+          <button class="btn ghost" data-act="exp-inc">⬇ incidents.csv</button><button class="btn ghost" data-act="exp-ind">⬇ indicators.csv</button><button class="btn ghost" data-act="exp-sites">⬇ sites.csv</button>
+          <label class="btn ghost">⬆ Импорт incidents.csv<input type="file" accept=".csv,text/csv" data-role="imp" hidden></label>
+          <button class="btn danger" data-act="reset">Сбросить к данным из файлов</button></div></div>
+          <div class="tabs"><button class="tab ${regTab === 'incidents' ? 'on' : ''}" data-reg="incidents">incidents (${reg.incidents.length})</button><button class="tab ${regTab === 'indicators' ? 'on' : ''}" data-reg="indicators">indicators (${reg.readings.length})</button></div>`;
+        const body = regTab === 'incidents'
+          ? `<div class="table-wrap tall"><table class="tbl"><thead><tr><th>incident_id</th><th>type</th><th>location</th><th>time</th><th>responsible</th><th>status</th><th>deadline</th></tr></thead><tbody>
+            ${reg.incidents.map((i) => `<tr><td>${esc(i.incident_id)}</td><td>${esc(i.type)}</td><td>${esc(i.location)}</td><td class="nowrap">${U.fmtDT(i.time)}</td><td>${esc(i.responsible || '—')}</td><td><span class="badge st-${i.status.toLowerCase()}">${i.status}</span></td><td class="nowrap">${U.fmtDT(i.deadline)}</td></tr>`).join('')}</tbody></table></div>`
+          : `<div class="table-wrap tall"><table class="tbl"><thead><tr><th>time</th><th>location</th><th>indicator</th><th>value</th><th>norm_min</th><th>norm_max</th><th>status</th></tr></thead><tbody>
+            ${reg.readings.map((r) => `<tr><td class="nowrap">${U.fmtDT(r.time)}</td><td>${esc(r.location)}</td><td>${esc(r.indicator)}</td><td>${r.value == null ? '—' : r.value}</td><td>${r.norm_min}</td><td>${r.norm_max}</td><td><span class="badge st-${D.cls(r.status)}">${esc(r.status)}</span></td></tr>`).join('')}</tbody></table></div>`;
+        return head + body;
+      }
+
+      // Перерисовка вкладок админки
+      function render() {
+        tabs();
+        $('body').innerHTML = { users, dirs, logs, audit, registry }[tab]();
+      }
+
+      // Форма создания/редактирования сотрудника
+      function userDialog(id) {
+        const u = id ? S.users().find((x) => x.id === id) : { name: '', login: '', role: 'worker', active: true, zones: [], sites: [] };
+        $('dlg').innerHTML = `<form method="dialog" class="dlg-body">
+          <h3>${id ? 'Редактирование ' + esc(u.id) : 'Новый сотрудник'}</h3>
+          <label>ФИО (Фамилия Имя Отчество)<input data-role="u-name" value="${esc(u.name)}"></label>
+          <label>Логин<input data-role="u-login" value="${esc(u.login)}"></label>
+          <label>Роль<select data-role="u-role">${Object.entries(D.ROLES).map(([k, t]) => `<option value="${k}" ${u.role === k ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+          <label>Зоны (zone_A, zone_B… или *; у руководителя и админа — все)<input data-role="u-zones" value="${esc(u.zones === '*' ? '*' : (u.zones || []).join(', '))}"></label>
+          <label>Участки, за которые отвечает (site_01, site_02… или *; должны входить в зоны)<input data-role="u-sites" value="${esc(u.sites === '*' ? '*' : (u.sites || []).join(', '))}"></label>
+          <label class="check"><input type="checkbox" data-role="u-act" ${u.active ? 'checked' : ''}> Учётная запись активна</label>
+          <div class="dlg-actions"><button class="btn primary" type="button" data-act="user-save" data-id="${id || ''}">Сохранить</button><button class="btn ghost" value="close">Отмена</button></div></form>`;
+        $('dlg').showModal();
+      }
+
+      const safe = (fn) => (e) => { try { fn(e); } catch (err) { U.toast(err.message, 'error'); render(); } };
+      const val = (n) => root.querySelector(`[data-role="${n}"]`).value;
+
+      root.addEventListener('click', safe((e) => {
+        const t = e.target.closest('[data-tab]');
+        if (t) { tab = t.dataset.tab; render(); return; }
+        const r = e.target.closest('[data-reg]');
+        if (r) { regTab = r.dataset.reg; render(); return; }
+        const b = e.target.closest('[data-act]');
+        if (!b) return;
+        const id = b.dataset.id;
+        switch (b.dataset.act) {
+          case 'user-new': userDialog(); break;
+          case 'aud-verify': { const v = S.verifyAudit(); U.toast(v.ok ? `Цепочка целостна: ${v.total} записей` : `НАРУШЕНИЕ на записи №${v.at + 1}`, v.ok ? 'ok' : 'error'); render(); break; }
+          case 'aud-exp': U.download('audit.csv', S.exportAuditCSV()); break;
+          case 'aud-tamper': {
+            const first = S.auditLog()[0];
+            const tries = [['Изменить', () => S.auditUpdate()], ['Удалить', () => S.auditDelete()]];
+            const res = tries.map(([n, f]) => { try { f(); return n + ': выполнено?!'; } catch (er) { return n + ': ' + (er.code === 'AUDIT_APPEND_ONLY' ? 'отказ ✔' : 'ошибка'); } });
+            res.push('Запись заморожена: ' + (Object.isFrozen(first) ? 'да ✔' : 'НЕТ'));
+            U.toast('Аудит: ' + res.join(' | '), 'info'); break;
+          }
+          case 'user-edit': userDialog(id); break;
+          case 'user-save':
+            S.saveUser({ id: id || undefined, name: val('u-name'), login: val('u-login'), role: val('u-role'), zones: val('u-zones'), sites: val('u-sites'), active: root.querySelector('[data-role="u-act"]').checked });
+            $('dlg').close(); U.toast('Пользователь сохранён', 'ok'); break;
+          case 'loc-add': S.addLocation(val('loc-id'), val('loc-name'), val('loc-zone')); U.toast('Участок добавлен', 'ok'); break;
+          case 'exp-inc': U.download('incidents.csv', S.exportIncidentsCSV()); break;
+          case 'exp-ind': U.download('indicators.csv', S.exportIndicatorsCSV()); break;
+          case 'exp-sites': U.download('sites.csv', S.exportSitesCSV()); break;
+          case 'reset': if (confirm('Сбросить рабочие данные и загрузить заново из файлов?')) { S.resetData(); U.toast('Данные восстановлены из файлов', 'ok'); } break;
+          case 'rbac-test': {
+            const tries = [['Смена статуса инцидента', () => S.changeStatus('inc_001', 'ASSIGNED')], ['Создание инцидента', () => S.createIncident({})], ['Назначение ответственного', () => S.assign('inc_001', 'e_101')]];
+            const res = tries.map(([n, f]) => { try { f(); return n + ': выполнено?!'; } catch (er) { return n + ': ' + (er instanceof S.AccessError ? 'отказ ✔' : 'ошибка'); } });
+            U.toast('RBAC: ' + res.join(' | '), 'info'); break;
+          }
+        }
+      }));
+      root.addEventListener('change', safe((e) => {
+        if (e.target.dataset.role === 'imp' && e.target.files[0]) {
+          const file = e.target.files[0];
+          const rd = new FileReader();
+          rd.onload = () => { try { const r = S.importIncidentsCSV(String(rd.result)); U.toast(`Импорт: +${r.added}, обновлено ${r.updated}, пропущено ${r.skipped}`, 'ok'); } catch (er) { U.toast(er.message, 'error'); } };
+          rd.readAsText(file);
+        }
+      }));
+
+      render();
+      container.appendChild(root);
+      return {
+        refresh(topic) {
+          if (['logs', 'incidents', 'telemetry', 'admin', 'directory'].includes(topic)) {
+            if (tab === 'dirs' && topic !== 'directory' && topic !== 'admin') return;
+            if (tab === 'users' && topic !== 'admin') return;
+            if (topic === 'logs' && tab !== 'logs') return;
+            render();
+          }
+        },
+      };
+    },
+  };
+})();
+
+/* ===== js/app.js ===== */
+(function () {
+  const SC = window.SC, U = SC.utils, D = SC.data, S = SC.store;
+  const header = document.getElementById('app-header');
+  const main = document.getElementById('app-main');
+  let current = null;
+
+  const ICON = { dispatcher: '🖥', manager: '📊', worker: '🧰', admin: '⚙' };
+
+  // Шапка приложения: логотип, переключатель ролей, выбор пользователя (с зонами и участками), кнопка «Стенд датчиков»,
+  // часы системы и ПАНЕЛЬ СИМУЛЯЦИИ: ▶/⏸, «в начало», −1 ч / −10 мин / +10 мин / +1 ч, скорость (×1…×1800) и ползунок позиции.
+  function renderHeader() {
+    const s = S.session();
+    const same = S.users().filter((u) => u.role === s.role && u.active);
+    header.innerHTML = `
+      <div class="brand"><span class="logo">🐔</span><div><b>Ситуационный центр</b><small>Птицеводческое предприятие · прототип</small></div></div>
+      <nav class="roles" aria-label="Переключатель ролей">
+        ${Object.entries(D.ROLES).map(([k, t]) => `<button class="role-btn ${s.role === k ? 'on' : ''}" data-role="${k}">${ICON[k]} ${t}</button>`).join('')}
+      </nav>
+      <div class="hdr-right">
+        <label class="who">Пользователь:
+          <select data-user>${same.map((u) => `<option value="${u.id}" ${u.id === s.userId ? 'selected' : ''}>${U.esc(u.name)} · ${U.esc(S.zonesLabel(u))} · ${U.esc(S.sitesLabel(u))}</option>`).join('')}</select></label>
+        <button class="btn ghost sm" data-stand>📡 Стенд датчиков</button>
+        <span class="clock" id="clock" title="Время системы: симулируемое, старт — время первого инцидента в данных"></span>
+      </div>
+      <div class="simbar" aria-label="Управление симуляцией">
+        <button class="btn ghost sm" data-sim>${S.simRunning ? '⏸ Симуляция' : '▶ Симуляция'}</button>
+        <button class="btn ghost sm" data-seek="start" title="В начало (время первого инцидента)">⏮</button>
+        <button class="btn ghost sm" data-seek="-3600000" title="Назад на 1 час">−1 ч</button>
+        <button class="btn ghost sm" data-seek="-600000" title="Назад на 10 минут">−10 мин</button>
+        <button class="btn ghost sm" data-seek="600000" title="Вперёд на 10 минут">+10 мин</button>
+        <button class="btn ghost sm" data-seek="3600000" title="Вперёд на 1 час">+1 ч</button>
+        <label>Скорость <select data-speed>${[[1, '×1'], [10, '×10'], [60, '×60 (1 с = 1 мин)'], [300, '×300 (1 с = 5 мин)'], [1800, '×1800 (1 с = 30 мин)']].map(([k, t]) => `<option value="${k}" ${U.speed() === k ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+        <span class="sim-r" data-sim-a></span>
+        <input type="range" data-pos aria-label="Позиция симуляции" step="60000">
+        <span class="sim-r" data-sim-z></span>
+        <span class="sim-t" data-sim-t></span>
+      </div>`;
+    tickClock();
+  }
+  // Обновление часов и ползунка симуляции (раз в секунду)
+  function tickClock() {
+    const c = document.getElementById('clock');
+    if (c) c.textContent = U.fmtClock(U.now());
+    const pos = header.querySelector('[data-pos]');
+    if (pos) {
+      const r = S.simRange();
+      pos.min = r.start; pos.max = r.end;
+      if (document.activeElement !== pos) pos.value = U.now();
+      header.querySelector('[data-sim-a]').textContent = U.fmtDT(r.start);
+      header.querySelector('[data-sim-z]').textContent = U.fmtDT(r.end);
+      header.querySelector('[data-sim-t]').textContent = (S.simRunning ? '▶ идёт · ' : '⏸ пауза · ') + U.fmtDT(U.now());
+    }
+  }
+
+  // Подключает экран выбранной роли
+  function mountView() {
+    main.innerHTML = '';
+    const role = S.session().role;
+    current = SC.views[role].mount(main);
+  }
+
+  header.addEventListener('click', (e) => {
+    try {
+      if (e.target.closest('[data-stand]')) { openStand(); return; }
+      if (e.target.closest('[data-sim]')) { S.setSimulation(!S.simRunning); renderHeader(); U.toast(S.simRunning ? 'Симуляция запущена' : 'Симуляция на паузе'); return; }
+      const sk = e.target.closest('[data-seek]');
+      if (sk) { sk.dataset.seek === 'start' ? S.seek(0) : S.seekBy(Number(sk.dataset.seek)); tickClock(); return; }
+      const r = e.target.closest('[data-role]');
+      if (r) S.setRole(r.dataset.role);
+    } catch (err) { U.toast(err.message, 'error'); }
+  });
+  header.addEventListener('change', (e) => {
+    if (e.target.matches('[data-user]')) {
+      try { S.setUser(e.target.value); } catch (err) { U.toast(err.message, 'error'); }
+    }
+    if (e.target.matches('[data-speed]')) { U.setSpeed(Number(e.target.value)); tickClock(); U.toast('Скорость времени ×' + e.target.value); }
+    if (e.target.matches('[data-pos]')) { S.seek(Number(e.target.value)); e.target.blur(); tickClock(); }
+  });
+  header.addEventListener('input', (e) => {
+    if (e.target.matches('[data-pos]')) header.querySelector('[data-sim-t]').textContent = 'перемотка → ' + U.fmtDT(Number(e.target.value));
+  });
+
+  S.subscribe((topic) => {
+    if (topic === 'session') { renderHeader(); mountView(); }
+    else if (current) current.refresh(topic);
+    if (topic === 'admin') renderHeader();
+  });
+
+  // ---- стенд датчиков: эмулирует прошивку (подпись HMAC) и сеть датчиков; не зависит от роли пользователя ----
+  const stand = document.getElementById('stand');
+  let evtN = 0, lastEvt = null;
+  // «СТЕНД ДАТЧИКОВ» — эмулятор прошивки для демонстрации и проверки. Позволяет отправить в шлюз телеметрии:
+  // корректное событие (подписанное), событие с неверной подписью, без подписи, с неизвестным участком, повтор event_id,
+  // а также вручную запустить проверку зависших датчиков (A-4). Для A-3 нужно два CRITICAL подряд с паузой больше 5 и не больше 15 минут
+  // (удобно перемотать время или поставить скорость ×60).
+  function openStand() {
+    const th = S.thresholds();
+    stand.innerHTML = `<form method="dialog" class="dlg-body">
+      <h3>📡 Стенд датчиков</h3>
+      <p class="muted small">Подписывает событие HMAC-SHA256 и отправляет в шлюз телеметрии. Для A-3: два CRITICAL подряд с паузой больше 5 и не больше 15 минут (скорость времени задаётся в панели симуляции под шапкой, удобно ×60). Для A-4: отправьте событие и подождите больше 5 минут системного времени.</p>
+      <label>Участок<select data-r="loc">${S.locations().map((l) => `<option value="${l.id}">${l.id} — ${U.esc(l.name)} (${U.esc(l.zone || '')})</option>`).join('')}</select></label>
+      <label>Показатель<select data-r="ind">${Object.entries(th).map(([k, t]) => `<option value="${k}">${U.esc(t.label)} (норма ${t.min}–${t.max})</option>`).join('')}</select></label>
+      <label>Значение<input data-r="val" type="number" step="any" value="29"></label>
+      <div class="btns">
+        <button class="btn primary" type="button" data-ev="ok">Отправить событие</button>
+        <button class="btn" type="button" data-ev="badsig">Неверная подпись</button>
+        <button class="btn" type="button" data-ev="nosig">Без подписи</button>
+        <button class="btn" type="button" data-ev="unknown">Неизвестный участок</button>
+        <button class="btn" type="button" data-ev="replay">Повторить event_id</button>
+        <button class="btn" type="button" data-ev="stale">Проверить зависшие (A-4)</button>
+      </div>
+      <div class="small" data-r="res" style="min-height:2.6em"></div>
+      <div class="dlg-actions"><button class="btn ghost" value="close">Закрыть</button></div></form>`;
+    stand.showModal();
+  }
+  // Короткий доступ к полям стенда
+  const sg = (n) => stand.querySelector(`[data-r="${n}"]`);
+  stand.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-ev]');
+    if (!b) return;
+    const kind = b.dataset.ev, res = sg('res');
+    try {
+      if (kind === 'stale') { const n = S.checkStale(); res.textContent = n ? `⚠ Зависших датчиков: ${n}, эскалация отправлена руководителю` : 'Зависших датчиков нет (контролируются датчики, приславшие события в этом сеансе)'; return; }
+      let evt;
+      if (kind === 'replay') {
+        if (!lastEvt) { res.textContent = 'Сначала отправьте корректное событие'; return; }
+        evt = { ...lastEvt };
+      } else {
+        evt = { event_id: 'evt_' + Date.now().toString(36) + '_' + (++evtN), time: new Date(U.now()).toISOString(), location: sg('loc').value, indicator: sg('ind').value, value: Number(sg('val').value) };
+        if (kind === 'unknown') evt.location = 'site_99';
+        evt.signature = S.signEvent(evt);
+        if (kind === 'badsig') evt.signature = evt.signature.slice(0, -1) + (evt.signature.slice(-1) === '0' ? '1' : '0');
+        if (kind === 'nosig') delete evt.signature;
+        if (kind === 'ok') lastEvt = { ...evt };
+      }
+      const r = S.ingestTelemetry(evt);
+      res.textContent = `✔ ${r.status} · статус показания ${r.reading_status}` + (r.alert ? ` · алерт ${r.alert.alert_id}` : '') + (r.incident ? ` · инцидент ${r.incident.incident_id} (source=auto)` : '');
+      U.toast(r.status === 'DUPLICATE' ? 'Дубликат (A-5): алерт не создан' : 'Событие принято', r.status === 'DUPLICATE' ? 'info' : 'ok');
+    } catch (err) {
+      res.textContent = '✖ ' + err.message;
+      U.toast(err.message, 'error');
+    }
+  });
+
+  renderHeader();
+  mountView();
+  setInterval(tickClock, 1000);
+  setInterval(() => { try { if (S.simRunning) { S.checkStale(); S.syncSim(); } } catch (e) {} }, 1000); // A-4 и просрочка идут по симулируемому времени
+})();
+</script>
+</body>
+</html>
