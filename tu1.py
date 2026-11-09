@@ -10,6 +10,7 @@
   5. Строгий жизненный цикл: NEW → ASSIGNED → IN_PROGRESS → CLOSED, без пропусков и без переоткрытия.
 
 Окна: «в течение 5 минут» (A-5) включает границу (<= 5 мин); «дольше 5 минут» (A-4) — строго (> 5 мин).
+Норма — как в indicators.csv: [norm_min; norm_max) — ровно norm_max уже WARNING (см. classify). Нормы и инциденты читаются из CSV.
 """
 from __future__ import annotations
 
@@ -332,12 +333,27 @@ class Escalation:
     ack: bool = False
 
 
-# Статус значения относительно нормы [lo; hi]: внутри (границы включены) → NORMAL; выход за границу до 20% ширины диапазона → WARNING; больше → CRITICAL.
+# Статус значения относительно нормы. ИЗМЕНЕНО: правило взято из indicators.csv, чтобы сервер не расходился с данными.
+# В файле: humidity = 40.0 (ровно norm_min) → NORMAL, temperature = 26.0 (ровно norm_max) → WARNING.
+# Значит, норма — полуинтервал [norm_min; norm_max): нижняя граница входит в норму, верхняя уже нет.
+# Выход за границу не больше чем на 20% ширины нормы (norm_max − norm_min) → WARNING; больше → CRITICAL (тоже совпадает со всеми строками CSV).
 def classify(value: float, lo: float, hi: float) -> str:
-    if lo <= value <= hi:
+    if lo <= value < hi:  # ИЗМЕНЕНО: было lo <= value <= hi; верхняя граница теперь НЕ норма — как в indicators.csv
         return "NORMAL"
-    dev = (lo - value) if value < lo else (value - hi)
+    dev = (lo - value) if value < lo else (value - hi)  # на сколько вышли за границу; ровно на norm_max dev = 0 → WARNING
     return "CRITICAL" if dev > 0.2 * (hi - lo) else "WARNING"
+
+
+# ДОБАВЛЕНО: нормы показателей читаются из indicators.csv (колонки norm_min, norm_max), чтобы сервер брал их из данных, а не из кода.
+# Если у одного показателя в файле встретятся разные нормы — это ошибка данных, сервис не стартует (CONFIG_ERROR).
+def norms_from_csv(path: str) -> dict[str, tuple[float, float]]:
+    norms: dict[str, tuple[float, float]] = {}  # показатель → (norm_min, norm_max)
+    with open(path, encoding="utf-8-sig", newline="") as f:  # только чтение, файл не меняется
+        for r in csv.DictReader(f):  # каждая строка показаний
+            pair = (float(r["norm_min"]), float(r["norm_max"]))  # нормы этой строки
+            if norms.setdefault(r["indicator"], pair) != pair:  # первая встреча запоминается, дальше сверяется
+                raise ScError("CONFIG_ERROR", f"разные нормы для {r['indicator']} в {path}")  # данные противоречивы
+    return norms  # для текущих данных совпадает с DEFAULT_NORMS
 
 
 # ЯДРО СЕРВИСА: хранит инциденты, алерты, показания, эскалации и журнал аудита; все операции потокобезопасны (общий замок self._lock).
@@ -348,7 +364,7 @@ class SituationCenter:
                  norms: dict | None = None, escalation_targets=("manager",)):
         self._secret = secret
         self.sites = sites
-        self.audit = audit or AuditLog()
+        self.audit = audit if audit is not None else AuditLog()  # ИСПРАВЛЕНО: было `audit or AuditLog()` — пустой журнал (len = 0) считался «ложью» и подменялся журналом в памяти, поэтому новый JSONL-файл не заполнялся
         self.norms = dict(norms or DEFAULT_NORMS)
         self.escalation_targets = tuple(escalation_targets)
         self.incidents: dict[str, Incident] = {}
@@ -356,6 +372,7 @@ class SituationCenter:
         self.escalations: list[Escalation] = []
         self.readings: list[Reading] = []
         self.stats = {"accepted": 0, "duplicate": 0, "rejected": 0}
+        self.system_log: list[dict] = []  # ДОБАВЛЕНО: системный журнал отказов TELEMETRY_REJECTED (как в прототипе); аудит остаётся только для инцидентов и алертов
         self._seen: set[str] = set()
         self._last_valid: dict[tuple, Reading] = {}
         self._live: dict[tuple, datetime] = {}       # последний «признак жизни» датчика
@@ -367,6 +384,28 @@ class SituationCenter:
     @classmethod
     def from_env(cls, sites_csv: str, audit_path: str | None = None) -> "SituationCenter":
         return cls(load_secret(), SiteDirectory.from_csv(sites_csv), AuditLog(audit_path))
+
+    # ДОБАВЛЕНО: загрузка реестра инцидентов из incidents.csv КАК ЕСТЬ — статус, ответственный и срок берутся из файла без пересчёта
+    # (сервер не должен расходиться с данными). Каждая запись попадает в аудит как created со статусом из файла.
+    # Счётчик номеров сдвигается на максимальный inc_NNN из файла, чтобы новые инциденты не совпали с импортированными.
+    def load_incidents_csv(self, path: str) -> int:
+        with self._lock:  # импорт целиком под замком
+            with open(path, encoding="utf-8-sig", newline="") as f:  # файл только читается
+                rows = list(csv.DictReader(f))  # все строки реестра
+            for r in rows:  # по одной записи
+                if r["location"] not in self.sites:  # участок обязан быть в sites.csv
+                    raise ScError("UNKNOWN_LOCATION", f"{r['incident_id']}: {r['location']}")  # ошибка данных
+                if r["status"] not in STATUSES:  # статус обязан быть из жизненного цикла
+                    raise ScError("INVALID_STATUS", f"{r['incident_id']}: {r['status']}")  # ошибка данных
+                inc = Incident(r["incident_id"], r["type"], r["location"], iso(parse_ts(r["time"])), r["responsible"],
+                               r["status"], iso(parse_ts(r["deadline"])), source="import")  # поля 1:1 из файла
+                self.incidents[inc.incident_id] = inc  # кладём в реестр
+                self._audit("incident", inc.incident_id, "created", None, inc.status, SYSTEM, parse_ts(r["time"]),
+                            "импорт из incidents.csv")  # след в аудите: откуда взялась запись
+                num = inc.incident_id.rsplit("_", 1)[-1]  # числовая часть номера (inc_100 → 100)
+                if num.isdigit():  # только для номеров формата inc_NNN
+                    self._seq["inc"] = max(self._seq["inc"], int(num))  # новые инциденты пойдут после последнего из файла
+            return len(rows)  # сколько записей загружено
 
     # ── служебное ──
     # Генератор идентификаторов (inc_001, alr_001, esc_001 ...) с отдельным счётчиком на каждый префикс.
@@ -522,8 +561,11 @@ class SituationCenter:
                         raise ValueError
                 except (TypeError, ValueError):
                     raise ScError("INVALID_EVENT", "некорректное значение")
-            except ScError:
+            except ScError as err:  # ИЗМЕНЕНО: берём саму ошибку, чтобы записать её код в системный журнал
                 self.stats["rejected"] += 1
+                self.system_log.append({"type": "TELEMETRY_REJECTED", "code": err.code, "message": err.message,  # ДОБАВЛЕНО: запись об отказе
+                                        "event_id": str(e.get("event_id", "")), "location": str(e.get("location", "")),  # ДОБАВЛЕНО: что именно отклонено
+                                        "indicator": str(e.get("indicator", "")), "at": iso(now or utcnow())})  # ДОБАВЛЕНО: когда
                 raise
             now = now or t
             loc = e["location"]
@@ -631,11 +673,12 @@ def _read_csv(path: str) -> list[dict]:
 
 
 # ДОБАВЛЕНО: прогоняет показания из indicators.csv через SituationCenter.ingest и возвращает строки для alerts_out.csv и счётчики.
-def run_csv(indicators_path: str, sites_path: str, secret: bytes) -> tuple[list[dict], dict]:
-    sc = SituationCenter(secret, SiteDirectory.from_csv(sites_path))  # создаём сервис: справочник участков берём из sites.csv
+def run_csv(indicators_path: str, sites_path: str, secret: bytes, incidents_path: str | None = None) -> tuple[list[dict], dict]:  # ИЗМЕНЕНО: можно передать incidents.csv
+    sc = SituationCenter(secret, SiteDirectory.from_csv(sites_path), norms=norms_from_csv(indicators_path))  # ИЗМЕНЕНО: нормы берутся из indicators.csv, участки из sites.csv
+    loaded = sc.load_incidents_csv(incidents_path) if incidents_path else 0  # ДОБАВЛЕНО: реестр инцидентов из файла как есть
     rows = sorted(_read_csv(indicators_path), key=lambda r: r["time"])  # сортируем по времени: правила A-5/A-3 считают окна по порядку событий
     out: list[dict] = []  # сюда складываем строки результата
-    counts = {"rows": len(rows), "accepted": 0, "duplicate": 0, "rejected": 0, "stale_rows": 0, "alerts": 0, "auto_incidents": 0}  # сводка
+    counts = {"incidents_loaded": loaded, "rows": len(rows), "accepted": 0, "duplicate": 0, "rejected": 0, "stale_rows": 0, "alerts": 0, "auto_incidents": 0}  # сводка
     for n, r in enumerate(rows, 1):  # идём по строкам, n — порядковый номер для event_id
         if r["value"] == "":  # пустое значение в файле = датчик ничего не передал (правило A-4 в виде данных)
             counts["stale_rows"] += 1  # считаем такие строки отдельно
@@ -742,6 +785,7 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Ситуационный центр: консольный прогон правил на CSV")  # описание в --help
     ap.add_argument("--indicators", default="data/indicators.csv", help="путь к indicators.csv (только чтение)")  # входные показания
     ap.add_argument("--sites", default="data/sites.csv", help="путь к sites.csv (только чтение)")  # справочник участков
+    ap.add_argument("--incidents", default="data/incidents.csv", help="путь к incidents.csv (только чтение)")  # ДОБАВЛЕНО: реестр инцидентов
     ap.add_argument("--out", default="alerts_out.csv", help="куда записать результат (новый файл)")  # выходной файл
     ap.add_argument("--selftest", action="store_true", help="прогнать 5 тест-сценариев и показать PASS/FAIL")  # режим самопроверки
     a = ap.parse_args(argv)  # разбираем аргументы
@@ -756,14 +800,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f'Итого: {sum(1 for x in res if x[3])}/{len(res)} пройдено')  # сводка
         return 0 if all(x[3] for x in res) else 1  # код возврата для CI: 0 — всё хорошо
     secret = DEMO_SECRET  # CLI подписывает строки CSV сам: в файле подписей нет
-    out, c = run_csv(a.indicators, a.sites, secret)  # основной прогон
+    out, c = run_csv(a.indicators, a.sites, secret, a.incidents)  # основной прогон; ИЗМЕНЕНО: загружаем и incidents.csv
     with open(a.out, "w", encoding="utf-8", newline="") as f:  # результат пишем в НОВЫЙ файл, исходный CSV не трогаем
         w = csv.DictWriter(f, fieldnames=SEVERITY_HEADER)  # писатель CSV с заголовком
         w.writeheader()  # строка заголовка
         w.writerows(out)  # все строки результата
     for row in out:  # печатаем то же самое на экран
         print(f'{row["at"]} {row["location"]} {row["indicator"]:<12} {row["value"]:>6} {row["severity"]:<9} {row["action"]:<14} {row["note"]}')  # одна строка
-    print(f'\nСтрок: {c["rows"]} | принято: {c["accepted"]} | дублей: {c["duplicate"]} | отклонено: {c["rejected"]} | '
+    print(f'\nИнцидентов из файла: {c["incidents_loaded"]} | Строк показаний: {c["rows"]} | принято: {c["accepted"]} | дублей: {c["duplicate"]} | отклонено: {c["rejected"]} | '
           f'строк STALE: {c["stale_rows"]} | алертов: {c["alerts"]} | авто-инцидентов: {c["auto_incidents"]}')  # итоговая сводка
     print(f"Результат записан в {a.out}")  # подсказка, где файл
     return 0  # успех
