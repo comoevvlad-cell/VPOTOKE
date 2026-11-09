@@ -408,13 +408,15 @@ class SituationCenter:
             raise ScError("PERMISSION_DENIED", "нет права просмотра инцидентов")
 
     # Создание инцидента. Ручной (source='manual') требует права incident.create; авто-инцидент (A-3) создаёт сама система.
-    # Проверяется зона участка. Запись в аудит: created. ПРИМЕЧАНИЕ: в этой версии deadline передаётся параметром —
-    # в прототипе (situation-center.html) он уже вычисляется автоматически как created_at + 4 часа; здесь стоит сделать так же.
-    def create_incident(self, actor: Actor, type: str, location: str, deadline: datetime, description: str = "",
+    # Проверяется зона участка. Запись в аудит: created.
+    # ИЗМЕНЕНО: deadline теперь можно не передавать (None) — тогда срок считается автоматически как время создания + 4 часа,
+    # так же, как в прототипе (situation-center.html). Явно переданный deadline работает как раньше (старые вызовы и тесты не ломаются).
+    def create_incident(self, actor: Actor, type: str, location: str, deadline: datetime | None, description: str = "",  # ИЗМЕНЕНО: тип deadline допускает None
                         source: str = "manual", related_to: str = "", alert_id: str = "",
                         now: datetime | None = None) -> Incident:
         with self._lock:
             now = now or utcnow()
+            deadline = deadline or (now + INCIDENT_TTL)  # ДОБАВЛЕНО: срок по умолчанию = now + 4 часа (INCIDENT_TTL), если не задан
             if source == "manual":
                 self._require(actor, "incident.create")
             self._zone_guard(actor, location)
@@ -608,3 +610,164 @@ class SituationCenter:
                     self._audit("alert", a.alert_id, "status_changed", "ESCALATED", "ACKNOWLEDGED", actor, now)
                     a.status = "ACKNOWLEDGED"
             return esc
+
+
+# ═════════════════════════ КОНСОЛЬНЫЙ РЕЖИМ (CLI) ═════════════════════════
+# ДОБАВЛЕНО: весь блок ниже новый. Он нужен, чтобы запускать те же правила (подпись, A-5, A-3, оценка по норме) из терминала
+# на CSV-файлах и получать alerts_out.csv, а также прогонять 5 тест-сценариев командой --selftest. Серверная логика выше НЕ менялась.
+import argparse  # ДОБАВЛЕНО: разбор аргументов командной строки (--indicators, --selftest и т.д.)
+import sys  # ДОБАВЛЕНО: нужен для кода возврата (sys.exit) и вывода в stdout
+
+# ДОБАВЛЕНО: демонстрационный секрет для CLI. В боевом режиме секрет берётся из SENSOR_HMAC_SECRET (см. load_secret).
+# Здесь он нужен только потому, что в CSV нет подписей: CLI играет роль «прошивки датчика» и подписывает строки сам.
+DEMO_SECRET = b"demo-secret-only-for-cli-run-0001"  # ДОБАВЛЕНО: минимум 16 символов, иначе load_secret() отверг бы такой ключ
+SEVERITY_HEADER = ["alert_id", "at", "location", "indicator", "value", "severity", "action", "note"]  # ДОБАВЛЕНО: колонки alerts_out.csv
+
+
+# ДОБАВЛЕНО: читает CSV в список словарей (utf-8-sig убирает BOM, если файл сохранён из Excel).
+def _read_csv(path: str) -> list[dict]:
+    with open(path, encoding="utf-8-sig", newline="") as f:  # открываем файл только на чтение — исходные данные не меняются
+        return list(csv.DictReader(f))  # каждая строка превращается в словарь «колонка → значение»
+
+
+# ДОБАВЛЕНО: прогоняет показания из indicators.csv через SituationCenter.ingest и возвращает строки для alerts_out.csv и счётчики.
+def run_csv(indicators_path: str, sites_path: str, secret: bytes) -> tuple[list[dict], dict]:
+    sc = SituationCenter(secret, SiteDirectory.from_csv(sites_path))  # создаём сервис: справочник участков берём из sites.csv
+    rows = sorted(_read_csv(indicators_path), key=lambda r: r["time"])  # сортируем по времени: правила A-5/A-3 считают окна по порядку событий
+    out: list[dict] = []  # сюда складываем строки результата
+    counts = {"rows": len(rows), "accepted": 0, "duplicate": 0, "rejected": 0, "stale_rows": 0, "alerts": 0, "auto_incidents": 0}  # сводка
+    for n, r in enumerate(rows, 1):  # идём по строкам, n — порядковый номер для event_id
+        if r["value"] == "":  # пустое значение в файле = датчик ничего не передал (правило A-4 в виде данных)
+            counts["stale_rows"] += 1  # считаем такие строки отдельно
+            out.append({"alert_id": "", "at": r["time"], "location": r["location"], "indicator": r["indicator"], "value": "",
+                        "severity": "STALE", "action": "ESCALATED", "note": "нет значения: эскалация руководителю (A-4)"})  # фиксируем STALE и эскалацию
+            continue  # в движок такую строку не отправляем: у события без значения нет смысла подписи и оценки
+        event = {"event_id": f"csv_{n:04d}", "time": r["time"], "location": r["location"],
+                 "indicator": r["indicator"], "value": r["value"]}  # собираем событие так, как его прислал бы датчик
+        event["signature"] = sign_event(secret, event)  # ставим подпись HMAC — как это делает прошивка датчика
+        try:  # движок может отклонить событие (подпись, участок, повтор, формат)
+            res = sc.ingest(event)  # главный вызов: проверки + A-5 + оценка по норме + A-3
+        except ScError as e:  # бизнес-ошибка с машинным кодом
+            counts["rejected"] += 1  # считаем отказ
+            out.append({"alert_id": "", "at": r["time"], "location": r["location"], "indicator": r["indicator"], "value": r["value"],
+                        "severity": "", "action": "REJECTED", "note": e.code})  # пишем код ошибки в результат
+            continue  # переходим к следующей строке
+        if res["status"] == "DUPLICATE":  # A-5: повтор в окне 5 минут
+            counts["duplicate"] += 1  # считаем дубль
+            out.append({"alert_id": "", "at": r["time"], "location": r["location"], "indicator": r["indicator"], "value": r["value"],
+                        "severity": "", "action": "DUPLICATE", "note": "повтор в окне 5 минут (A-5), алерт не создан"})  # дубль виден, но алерта нет
+            continue  # следующая строка
+        counts["accepted"] += 1  # событие принято
+        sev = res["reading_status"]  # NORMAL / WARNING / CRITICAL
+        if sev == "NORMAL":  # нормальные показания в отчёт не пишем, чтобы он был читаемым
+            continue  # следующая строка
+        alert, inc = res["alert"], res["incident"]  # алерт создаётся только для CRITICAL; инцидент — только по A-3
+        if alert is not None:  # есть алерт
+            counts["alerts"] += 1  # считаем алерты
+        if inc is not None:  # сработало правило A-3
+            counts["auto_incidents"] += 1  # считаем авто-инциденты
+        action = "AUTO_INCIDENT" if inc is not None else ("ALERT_CREATED" if alert is not None else "SHOWN_ON_PANEL")  # что сделала система
+        note = f"инцидент {inc.incident_id} (A-3)" if inc is not None else ("" if alert is not None else "WARNING: виден на панели, алерт не создаётся")  # пояснение
+        out.append({"alert_id": alert.alert_id if alert else "", "at": r["time"], "location": r["location"], "indicator": r["indicator"],
+                    "value": r["value"], "severity": sev, "action": action, "note": note})  # строка результата
+    return out, counts  # возвращаем результат и сводку
+
+
+# ДОБАВЛЕНО: 5 тест-сценариев по заданию: успех, отказ, неверные данные, повтор, таймаут/STALE. Возвращает список (название, ожидание, факт, пройден).
+def selftest() -> list[tuple[str, str, str, bool]]:
+    secret = b"selftest-secret-0123456789"  # отдельный секрет для самопроверки (≥ 16 символов)
+    sites = SiteDirectory({"site_01": {"site_id": "site_01", "name": "Птичник №1", "zone": "zone_A"},
+                           "site_02": {"site_id": "site_02", "name": "Птичник №2", "zone": "zone_A"}})  # мини-справочник, чтобы тесты не зависели от файлов
+    t0 = parse_ts("2025-11-04T10:00:00Z")  # базовое время сценариев
+
+    def ev(eid: str, t: datetime, loc: str, ind: str, val) -> dict:  # ДОБАВЛЕНО: вспомогательная функция — собирает подписанное событие
+        e = {"event_id": eid, "time": iso(t), "location": loc, "indicator": ind, "value": val}  # поля события
+        e["signature"] = sign_event(secret, e)  # подпись как у настоящего датчика
+        return e  # готовое событие
+
+    results: list[tuple[str, str, str, bool]] = []  # сюда пишем итоги
+
+    # 1) УСПЕХ: корректное подписанное событие принимается, 29 °C при норме 20–26 даёт CRITICAL и алерт
+    sc = SituationCenter(secret, sites)  # чистый экземпляр сервиса на каждый сценарий
+    r = sc.ingest(ev("t1", t0, "site_02", "temperature", 29), now=t0)  # отправляем событие
+    ok = r["status"] == "ACCEPTED" and r["reading_status"] == "CRITICAL" and r["alert"] is not None  # проверяем ожидание
+    results.append(("1. Успех", "ACCEPTED, CRITICAL, алерт создан", f'{r["status"]}, {r["reading_status"]}, алерт {"создан" if r["alert"] else "нет"}', ok))  # фиксируем факт
+
+    # 2) ОТКАЗ: подпись подменена — событие должно быть отклонено
+    sc = SituationCenter(secret, sites)  # чистый экземпляр
+    bad = ev("t2", t0, "site_02", "temperature", 29)  # корректное событие
+    bad["signature"] = "0" * 64  # портим подпись
+    try:  # ожидаем исключение
+        sc.ingest(bad, now=t0)  # отправляем
+        got, ok = "принято (ошибка!)", False  # если дошли сюда — защита не сработала
+    except ScError as e:  # ожидаемый путь
+        got, ok = e.code, e.code == "SENSOR_SIGNATURE_INVALID"  # проверяем код ошибки
+    results.append(("2. Отказ (подпись)", "SENSOR_SIGNATURE_INVALID", got, ok))  # фиксируем
+
+    # 3) НЕВЕРНЫЕ ДАННЫЕ: участка нет в справочнике, подпись при этом верная
+    sc = SituationCenter(secret, sites)  # чистый экземпляр
+    try:  # ожидаем исключение
+        sc.ingest(ev("t3", t0, "site_99", "temperature", 29), now=t0)  # неизвестный участок
+        got, ok = "принято (ошибка!)", False  # защита не сработала
+    except ScError as e:  # ожидаемый путь
+        got, ok = e.code, e.code == "UNKNOWN_LOCATION"  # проверяем код
+    results.append(("3. Неверные данные", "UNKNOWN_LOCATION", got, ok))  # фиксируем
+
+    # 4) ПОВТОР: второе событие ровно через 5:00 — DUPLICATE, алерт один; тот же event_id — EVENT_REPLAY
+    sc = SituationCenter(secret, sites)  # чистый экземпляр
+    sc.ingest(ev("t4a", t0, "site_02", "temperature", 29), now=t0)  # первое событие создаёт алерт
+    r2 = sc.ingest(ev("t4b", t0 + timedelta(minutes=5), "site_02", "temperature", 29), now=t0 + timedelta(minutes=5))  # граница окна: ровно 5:00
+    try:  # повтор того же event_id
+        sc.ingest(ev("t4a", t0, "site_02", "temperature", 29), now=t0)  # проигрываем старое событие
+        replay = "принято (ошибка!)"  # защита не сработала
+    except ScError as e:  # ожидаемый путь
+        replay = e.code  # EVENT_REPLAY
+    ok = r2["status"] == "DUPLICATE" and len(sc.alerts) == 1 and replay == "EVENT_REPLAY"  # проверяем всё сразу
+    results.append(("4. Повтор", "5:00 → DUPLICATE, 1 алерт; тот же event_id → EVENT_REPLAY", f'{r2["status"]}, алертов {len(sc.alerts)}; {replay}', ok))  # фиксируем
+
+    # 5) ТАЙМАУТ/STALE: тишина ровно 5:00 — ещё нет; 5:01 — STALE и эскалация руководителю
+    sc = SituationCenter(secret, sites)  # чистый экземпляр
+    sc.ingest(ev("t5", t0, "site_01", "humidity", 55), now=t0)  # датчик подал признак жизни
+    e1 = sc.check_stale(now=t0 + timedelta(minutes=5))  # ровно 5:00 — граница, STALE ещё нет
+    e2 = sc.check_stale(now=t0 + timedelta(minutes=5, seconds=1))  # 5:01 — тишина дольше 5 минут
+    ok = len(e1) == 0 and len(e2) == 1 and sc.alerts[e2[0].alert_id].level == "STALE"  # проверяем границу и тип алерта
+    results.append(("5. Таймаут / STALE", "5:00 → нет; 5:01 → STALE + эскалация", f"5:00 → {len(e1)}; 5:01 → {len(e2)} эскалация", ok))  # фиксируем
+    return results  # отдаём итоги
+
+
+# ДОБАВЛЕНО: точка входа CLI. Примеры:
+#   python sc_backend.py --selftest
+#   python sc_backend.py --indicators data/indicators.csv --sites data/sites.csv --out alerts_out.csv
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description="Ситуационный центр: консольный прогон правил на CSV")  # описание в --help
+    ap.add_argument("--indicators", default="data/indicators.csv", help="путь к indicators.csv (только чтение)")  # входные показания
+    ap.add_argument("--sites", default="data/sites.csv", help="путь к sites.csv (только чтение)")  # справочник участков
+    ap.add_argument("--out", default="alerts_out.csv", help="куда записать результат (новый файл)")  # выходной файл
+    ap.add_argument("--selftest", action="store_true", help="прогнать 5 тест-сценариев и показать PASS/FAIL")  # режим самопроверки
+    a = ap.parse_args(argv)  # разбираем аргументы
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")  # чтобы кириллица печаталась и на Windows
+    except Exception:
+        pass  # если не получилось — просто продолжаем
+    if a.selftest:  # режим «5 тестов»
+        res = selftest()  # запускаем сценарии
+        for name, exp, got, ok in res:  # печатаем таблицу результатов
+            print(f'{"PASS" if ok else "FAIL"} | {name} | ожидание: {exp} | факт: {got}')  # одна строка на сценарий
+        print(f'Итого: {sum(1 for x in res if x[3])}/{len(res)} пройдено')  # сводка
+        return 0 if all(x[3] for x in res) else 1  # код возврата для CI: 0 — всё хорошо
+    secret = DEMO_SECRET  # CLI подписывает строки CSV сам: в файле подписей нет
+    out, c = run_csv(a.indicators, a.sites, secret)  # основной прогон
+    with open(a.out, "w", encoding="utf-8", newline="") as f:  # результат пишем в НОВЫЙ файл, исходный CSV не трогаем
+        w = csv.DictWriter(f, fieldnames=SEVERITY_HEADER)  # писатель CSV с заголовком
+        w.writeheader()  # строка заголовка
+        w.writerows(out)  # все строки результата
+    for row in out:  # печатаем то же самое на экран
+        print(f'{row["at"]} {row["location"]} {row["indicator"]:<12} {row["value"]:>6} {row["severity"]:<9} {row["action"]:<14} {row["note"]}')  # одна строка
+    print(f'\nСтрок: {c["rows"]} | принято: {c["accepted"]} | дублей: {c["duplicate"]} | отклонено: {c["rejected"]} | '
+          f'строк STALE: {c["stale_rows"]} | алертов: {c["alerts"]} | авто-инцидентов: {c["auto_incidents"]}')  # итоговая сводка
+    print(f"Результат записан в {a.out}")  # подсказка, где файл
+    return 0  # успех
+
+
+if __name__ == "__main__":  # запускается только при прямом вызове файла, при импорте в тестах не выполняется
+    sys.exit(main())  # передаём код возврата в shell
